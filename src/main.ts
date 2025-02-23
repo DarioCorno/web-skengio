@@ -34,18 +34,19 @@ async function main() {
     //torus.rotation[0] += deltaTime * 0.0001;
     //torus.rotation[1] += deltaTime * 0.00015;
     //torus.rotation[2] += deltaTime * 0.0002;
-    const distance = 5.5;
+
+    const distance = 4.5;
     light1.position[0] = Math.cos(rot) * distance;
     light1.position[1] = 0.0; //Math.sin(time.elapsed / 20000.0) * 3.1;
     light1.position[2] = Math.sin(rot) * distance;
     
-    //light2.position[0] = Math.cos(rot * 1.5) * distance;
-    //light2.position[1] = Math.sin(rot / 2.0) * distance;
-    //light2.position[2] = Math.sin(rot * 1.5) * distance;
+    light2.position[0] = Math.cos(rot * 1.5) * distance/ 2.0;
+    light2.position[1] = Math.sin(rot / 2.0) * distance/ 2.0;
+    light2.position[2] = Math.sin(rot * 1.5) * distance/ 2.0;
 
-    //sphere.position[0] = Math.sin(time.elapsed / 2000.0) * 3.0;
-    //sphere.position[1] = 0.0; //Math.sin(time.elapsed / 20000.0) * 3.0;
-    //sphere.position[2] = Math.cos(time.elapsed / 2000.0) * 3.0;
+    sphere.position[0] = Math.sin(rot * 1.1) * distance / 1.5;
+    sphere.position[1] = 0.0; 
+    sphere.position[2] = Math.cos(rot * 1.2) * distance / 1.5;
 
     demo.update();
     demo.render();

@@ -21,8 +21,12 @@ export const uniforms = {
     gBufferPositionName : 'uPosition',
     gBufferAlbedoName : 'uAlbedo',
     gBufferNormalName : 'uNormal',
-    gBufferObjectIDName : 'uObjectID'
+    gBufferObjectIDName : 'uObjectID',
 
     //light uniforms
+    LightPositionUniformName: 'uLightPosition',
+    LightColorUniformName: 'uLightColor',
+    LightModelViewUniformName: 'uModelViewMatrix',
+    LightIntensityUniformName: 'uLightIntensity',    
     
 }

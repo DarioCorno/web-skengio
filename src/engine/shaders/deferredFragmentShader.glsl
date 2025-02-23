@@ -24,6 +24,8 @@ uniform int uNumLights;
 uniform int uDebugMode;
 uniform float uMaterialShinines;
 
+// #####################à CAMERA UNIFORMS ###################
+uniform mat4 uViewMatrix;
 uniform float uNearPlane; // Near plane distance
 uniform float uFarPlane;
 
@@ -68,7 +70,8 @@ void main() {
 
         vec3 color = vec3(0.0);
         for(int i = 0; i < uNumLights; i++) {
-            vec3 lightPos = (uLights[i].uModelViewMatrix * vec4(uLights[i].uLightPosition, 1.0)).xyz;
+            //vec3 lightPos = (uLights[i].uModelViewMatrix * vec4(uLights[i].uLightPosition, 1.0)).xyz;
+            vec3 lightPos = (uViewMatrix * vec4(uLights[i].uLightPosition, 1.0)).xyz;
             vec3 lightDir = normalize(lightPos - fragPos);
             // Diffuse lighting angle
             float diffAngle = max(dot(norm,lightDir), 0.0);

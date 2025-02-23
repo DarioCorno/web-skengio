@@ -11,7 +11,8 @@ export class Light extends Entity{
     this.position = position;
     this.color = color;
     this.intensity = intensity;
-    this.type = 'light';
+    this.type = Entity.EntityTypes.Light;
+
   }
 
 

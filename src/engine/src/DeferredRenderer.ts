@@ -15,9 +15,9 @@ export class DeferredRenderer extends ENGINE.Renderer{
     private program: WebGLProgram | null = null;
     private uModelViewMatrixLocation: WebGLUniformLocation | null = null;
     private uProjectionMatrixLocation: WebGLUniformLocation | null = null;
-    private uLightPositionLocation: WebGLUniformLocation | null = null;
-    private uLightColorLocation: WebGLUniformLocation | null = null;
-    private uMaterialColorLocation: WebGLUniformLocation | null = null;
+    //private uLightPositionLocation: WebGLUniformLocation | null = null;
+    //private uLightColorLocation: WebGLUniformLocation | null = null;
+    //private uMaterialColorLocation: WebGLUniformLocation | null = null;
     private uObjectIdLocation : WebGLUniformLocation | null = null;
 
     private gbufDebugger: GBufferDebugger | null = null;
@@ -49,9 +49,9 @@ export class DeferredRenderer extends ENGINE.Renderer{
         // Get uniform locations.
         this.uModelViewMatrixLocation = this.gl.getUniformLocation(this.program, 'uModelViewMatrix');
         this.uProjectionMatrixLocation = this.gl.getUniformLocation(this.program, 'uProjectionMatrix');
-        this.uLightPositionLocation = this.gl.getUniformLocation(this.program, 'uLightPosition');
-        this.uLightColorLocation = this.gl.getUniformLocation(this.program, 'uLightColor');
-        this.uMaterialColorLocation = this.gl.getUniformLocation(this.program, 'uMaterialColor');
+        //this.uLightPositionLocation = this.gl.getUniformLocation(this.program, 'uLightPosition');
+        //this.uLightColorLocation = this.gl.getUniformLocation(this.program, 'uLightColor');
+        //this.uMaterialColorLocation = this.gl.getUniformLocation(this.program, 'uMaterialColor');
         this.uObjectIdLocation = this.gl.getUniformLocation(this.program, 'uObjectID');
 
         this.buildGBuffer();

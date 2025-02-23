@@ -57,7 +57,7 @@ export class Mesh extends Entity {
 
     this.hasUV = !!this.uv;
 
-    this.type = 'mesh';
+    this.type = Entity.EntityTypes.Mesh;
 
   }
 

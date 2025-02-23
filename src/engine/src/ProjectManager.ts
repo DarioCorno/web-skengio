@@ -20,6 +20,7 @@ interface SceneData {
         name: string,
         position: number[];
         color: number[];
+        debug?: boolean;
     }[];
     meshes: {   
         name: string,     
@@ -163,7 +164,9 @@ export class ProjectManager {
             );
             light.name = lightData.name ?? "Light" + performance.now().toString();
             scene.addLight(light);
-            scene.addMesh( light.getDebugMesh(this.gl) );
+            if(lightData.debug == true) {
+                scene.addMesh( light.getDebugMesh(this.gl) );
+            }
         }
 
         for (const meshData of sceneData.meshes) {

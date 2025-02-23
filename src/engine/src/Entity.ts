@@ -9,7 +9,15 @@ export class Entity {
     public _rotation: vec3 = vec3.fromValues(0.0, 0.0, 0.0);
     public _scale: vec3 = vec3.fromValues(1.0, 1.0, 1.0);
 
-    public type : string = "nd";
+    public static EntityTypes = {
+        Undefined: -1,
+        Mesh: 0,
+        Light: 1,
+        Camera: 2,
+        LightDebug: 3
+    }
+
+    public type : number = Entity.EntityTypes.Undefined;
     private debugMesh : ENGINE.Mesh | null = null;
 
     constructor(gl : WebGL2RenderingContext) {
@@ -44,14 +52,15 @@ export class Entity {
     getDebugMesh(gl : WebGL2RenderingContext) {
         let mesh = null;
         switch(this.type) {
-            case 'light':
-                const sData = ENGINE.Utils.GeometryGenerator.generateSphere(0.2, 8, 8);
+            case Entity.EntityTypes.Light:
+                const sData = ENGINE.Utils.GeometryGenerator.generateSphere(0.1, 8, 8);
                 mesh = new ENGINE.Mesh(gl, sData);
                 const light : ENGINE.Light = this as ENGINE.Light;
                 const color = vec4.fromValues(light.color[0], light.color[1], light.color[2], 1.0)
                 mesh.material = new MaterialColor( color );
                 mesh.material.name = 'LightDebugMaterial';
                 mesh.position = light.position;
+                mesh.type = Entity.EntityTypes.LightDebug;
                 mesh.init();
                 break;
         }

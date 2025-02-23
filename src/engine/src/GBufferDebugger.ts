@@ -40,6 +40,7 @@ export class GBufferDebugger {
         this.uniformLocations['uAlbedo'] = gl.getUniformLocation(this.program, "uAlbedo");
         this.uniformLocations['uNormal'] = gl.getUniformLocation(this.program, "uNormal");
         this.uniformLocations['uObjectID'] = gl.getUniformLocation(this.program, "uObjectID");
+        this.uniformLocations['uViewMatrix'] = gl.getUniformLocation(this.program, "uViewMatrix");
         this.uniformLocations['uNearPlane'] = gl.getUniformLocation(this.program, "uNearPlane");
         this.uniformLocations['uFarPlane'] = gl.getUniformLocation(this.program, "uFarPlane");
         this.uniformLocations['uDebugMode'] = gl.getUniformLocation(this.program, "uDebugMode");
@@ -144,30 +145,28 @@ export class GBufferDebugger {
         //const textureLocation3 = gl.getUniformLocation(this.program, "uObjectID");
         gl.uniform1i(this.uniformLocations['uObjectID'], 3);
 
-        //uniform float uNearPlane; // Near plane distance
-        //uniform float uFarPlane;        
-        //const nearLoc = gl.getUniformLocation(this.program, "uNearPlane");
-        gl.uniform1f(this.uniformLocations['uNearPlane'], scene.getCamera().near);
-        //const farLoc = gl.getUniformLocation(this.program, "uFarPlane");
-        gl.uniform1f(this.uniformLocations['uFarPlane'], scene.getCamera().far);
 
-        //bind the lights
-        const numLights = lights.length;
         const camera = scene.getCamera();
         const viewMatrix = camera.getViewMatrix();
+        gl.uniform1f(this.uniformLocations['uNearPlane'], scene.getCamera().near);
+        gl.uniform1f(this.uniformLocations['uFarPlane'], scene.getCamera().far);
+        gl.uniformMatrix4fv(this.uniformLocations['uViewMatrix'], false, viewMatrix);
 
+        //bind the lights
+
+        const numLights = lights.length;
         gl.uniform1i(this.numLightsLocation, numLights);
 
         // Set light uniforms
-        var mvpMatrix = mat4.create();
+        //var mvpMatrix = mat4.create();
         for (let i = 0; i < numLights; ++i) {
 
-            const modelMatrix : mat4 = lights[i].getModelMatrix();
-            const modelViewMatrix = mat4.create();
-            mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);            
+            //const modelMatrix : mat4 = lights[i].getModelMatrix();
+            //const modelViewMatrix = mat4.create();
+            //mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);            
 
 
-            gl.uniformMatrix4fv(this.lightModelViewLocations[i], false, modelViewMatrix);
+            //gl.uniformMatrix4fv(this.lightModelViewLocations[i], false, modelViewMatrix);
             gl.uniform3fv(this.lightPositionLocations[i], lights[i].position);
             gl.uniform3fv(this.lightColorLocations[i], lights[i].color);
             gl.uniform1f(this.lightIntensityLocations[i], lights[i].intensity);

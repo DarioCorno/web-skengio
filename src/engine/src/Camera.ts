@@ -24,7 +24,7 @@ export class Camera extends Entity {
     this.aspect = 1;
     this.near = near;
     this.far = far;
-    this.type = 'camera';
+    this.type = Entity.EntityTypes.Camera;
   }
 
   getProjectionMatrix(): mat4 {

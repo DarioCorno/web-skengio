@@ -10,6 +10,7 @@ export abstract class Material {
   public isTransparent: boolean = false;
   public shininess: number = 0;
 
+  public name : string = "";
   /**
    * Applies the material-specific uniforms to the given shader program.
    * @param gl The WebGL rendering context.
