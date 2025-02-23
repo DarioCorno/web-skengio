@@ -8,13 +8,14 @@ in vec2 vUV;
 uniform sampler2D uDiffuseTexture;
 uniform int uUseDiffuseTexture;
 uniform vec4 uMaterialColor;
-uniform float uObjectID;
+
+uniform vec4 uObjectData;
+
 
 layout(location = 0) out vec4 gPosition;  // G-buffer position
 layout(location = 1) out vec4 gAlbedo;    // G-buffer albedo
 layout(location = 2) out vec4 gNormal;    // G-buffer normal
-layout(location = 3) out vec4 gUV;  // G-buffer gUV
-layout(location = 4) out float gObjectID; //g-buffer object id
+layout(location = 3) out vec4 gObjectData; //g-buffer object id
 
 void main() {
   // Fill G-buffers with fixed values for debugging
@@ -28,8 +29,5 @@ void main() {
   if(gAlbedo.a < 0.1) discard;
 
   gNormal = vec4(vNormal, 1.0);   
-  //debug only
-  //gAlbedo = vec4(vNormal, 1.0);
-  gUV = vec4(vUV, 0.0, 1.0);  
-  gObjectID = uObjectID;
+  gObjectData = vec4(uObjectData.r, 1.0, 1.0, 1.0);
 }

@@ -6,7 +6,7 @@ in vec2 vUV;
 uniform sampler2D uPosition;
 uniform sampler2D uAlbedo;
 uniform sampler2D uNormal;
-uniform sampler2D uObjectID;
+uniform sampler2D uObjectData;
 
 // ############## Lights section ################
 #define MAX_LIGHTS 16
@@ -31,6 +31,13 @@ uniform float uFarPlane;
 
 out vec4 fragColor;
 
+vec3 getObjectColor(float id) {
+  float r = max( fract( sin(id * 12.9898) * 123.1), 0.4);
+  float g = max( fract( sin(id * 78.233)  * 23.13), 0.4);
+  float b = max( fract( sin(id * 39.346)  * 3.123), 0.4);
+  return vec3(r, g, b);
+}
+
 void main() {
 
     if ( uDebugMode == 1) {
@@ -43,9 +50,10 @@ void main() {
         //debug normals (absolute)
         fragColor = abs(texture(uNormal, vUV));
     } else if ( uDebugMode == 4) {
-        //debug objectId
-        float red = texture(uObjectID, vUV).r;
-        fragColor = vec4(red, 0.0, 0.0, 1.0);
+        //debug objectData
+        float objId = texture(uObjectData, vUV).r;
+        float alpha = texture(uAlbedo, vUV).a;
+        fragColor = vec4(getObjectColor(objId), alpha);
     } else if ( uDebugMode == 5) {
         //debug alpha
         vec4 alb = texture(uAlbedo, vUV);

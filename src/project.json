@@ -17,7 +17,7 @@
                 "aspect": 0,
                 "near": 0.1,
                 "far": 50,
-                "position": [7.0, 7.0, 7],
+                "position": [6.0, 6.0, 6.0],
                 "target" : [0.0 ,0.0 ,0.0]
             },
             "lights": [
@@ -33,7 +33,7 @@
                     "position": [-10, 0, 0], 
                     "color": [1.0, 0.0, 0.0],
                     "intensity" : 1,
-                    "debug" : false
+                    "debug" : true
                 }
             ],
             "meshes": [

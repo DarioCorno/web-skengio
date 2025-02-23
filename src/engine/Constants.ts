@@ -15,13 +15,13 @@ export const uniforms = {
     DiffuseTextureUniformName : 'uDiffuseTexture',
 
     MaterialColorUniformName : 'uMaterialColor',
-    ObjectIDUniformName : 'uObjectID',
+    ObjectDataUniformName : 'uObjectData',
 
     //gBuffers the final fragment shader receives
     gBufferPositionName : 'uPosition',
     gBufferAlbedoName : 'uAlbedo',
     gBufferNormalName : 'uNormal',
-    gBufferObjectIDName : 'uObjectID',
+    gBufferObjectDataName : 'uObjectData',
 
     //light uniforms
     LightPositionUniformName: 'uLightPosition',

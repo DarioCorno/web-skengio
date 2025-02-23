@@ -18,7 +18,7 @@ export class DeferredRenderer extends ENGINE.Renderer{
     //private uLightPositionLocation: WebGLUniformLocation | null = null;
     //private uLightColorLocation: WebGLUniformLocation | null = null;
     //private uMaterialColorLocation: WebGLUniformLocation | null = null;
-    private uObjectIdLocation : WebGLUniformLocation | null = null;
+    private uObjectDataLocation : WebGLUniformLocation | null = null;
 
     private gbufDebugger: GBufferDebugger | null = null;
 
@@ -52,7 +52,7 @@ export class DeferredRenderer extends ENGINE.Renderer{
         //this.uLightPositionLocation = this.gl.getUniformLocation(this.program, 'uLightPosition');
         //this.uLightColorLocation = this.gl.getUniformLocation(this.program, 'uLightColor');
         //this.uMaterialColorLocation = this.gl.getUniformLocation(this.program, 'uMaterialColor');
-        this.uObjectIdLocation = this.gl.getUniformLocation(this.program, 'uObjectID');
+        this.uObjectDataLocation = this.gl.getUniformLocation(this.program, 'uObjectData');
 
         this.buildGBuffer();
 
@@ -122,30 +122,17 @@ export class DeferredRenderer extends ENGINE.Renderer{
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, normalTarget, 0);
         this.textures['normal'] = normalTarget;
 
-        /*
-        var uvTarget = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, uvTarget);
+        // Create an additional texture for Object IDs
+        var gBufferObjectData = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, gBufferObjectData);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RG16F, gl.drawingBufferWidth, gl.drawingBufferHeight);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.TEXTURE_2D, uvTarget, 0);
-        this.textures['uv'] = uvTarget;
-        */
-
-        // Create an additional texture for Object IDs
-        var gBufferObjectID = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, gBufferObjectID);
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, gl.drawingBufferWidth, gl.drawingBufferHeight, 0, gl.RED, gl.FLOAT, null);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);      
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.TEXTURE_2D, gBufferObjectID, 0);          
-        this.textures['objid'] = gBufferObjectID;
+        gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA16F, gl.drawingBufferWidth, gl.drawingBufferHeight);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.TEXTURE_2D, gBufferObjectData, 0);       
+        this.textures['objdata'] = gBufferObjectData;
 
         var depthTexture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, depthTexture);
@@ -162,7 +149,7 @@ export class DeferredRenderer extends ENGINE.Renderer{
             gl.COLOR_ATTACHMENT0,   //position
             gl.COLOR_ATTACHMENT1,   //albedo
             gl.COLOR_ATTACHMENT2,   //normal
-            gl.COLOR_ATTACHMENT3    //objectId
+            gl.COLOR_ATTACHMENT3    //objectData
         ]);
 
         const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
@@ -238,19 +225,13 @@ export class DeferredRenderer extends ENGINE.Renderer{
             // Set shaders uniforms.
             gl.uniformMatrix4fv(this.uModelViewMatrixLocation, false, modelViewMatrix);
             gl.uniformMatrix4fv(this.uProjectionMatrixLocation, false, projectionMatrix);
-            gl.uniform1f(this.uObjectIdLocation, meshIdx);
+            gl.uniform4fv(this.uObjectDataLocation, [meshIdx, 0.0, 0.0, 0.0]);
       
             gl.disable(gl.BLEND);
             
             // If the mesh has an assigned material, apply it.
             if (mesh.material) {
-                mesh.material.useMaterial(gl, this.program);
-
-                //set the color if we found the uMaterialColor uniform
-                //if (this.uMaterialColorLocation) {
-                //    // Fallback to default white.
-                //    gl.uniform4fv(this.uMaterialColorLocation, [1, 1, 1, 1]);
-                //}                
+                mesh.material.useMaterial(gl, this.program);          
             } 
 
             //assing the positions, indexes, colors, normals and uv buffers to shader program

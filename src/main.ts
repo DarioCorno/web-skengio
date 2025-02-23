@@ -26,7 +26,7 @@ async function main() {
     const time = wm?.timer.getTime();
     const deltaTime = time.deltaTime;
 
-    rot += 0.003;
+    rot += 0.004;
 
     //cube.rotation[0] += deltaTime * 0.00002;
     //cube.rotation[1] += deltaTime * 0.00007;

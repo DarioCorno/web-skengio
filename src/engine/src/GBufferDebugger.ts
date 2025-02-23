@@ -17,7 +17,7 @@ export class GBufferDebugger {
 
     private uniformsLocationsSet : boolean = false;
 
-    //0 = final render, 1 = position, 2 = albedo, 3 = normal, 4 = objectId, 5 = alpha, 6 = depth
+    //0 = final render, 1 = position, 2 = albedo, 3 = normal, 4 = objectData, 5 = alpha, 6 = depth
     public debugMode : number = 0;  
 
     constructor(gl: WebGL2RenderingContext) {
@@ -39,7 +39,7 @@ export class GBufferDebugger {
         this.uniformLocations['uPosition'] = gl.getUniformLocation(this.program, "uPosition");
         this.uniformLocations['uAlbedo'] = gl.getUniformLocation(this.program, "uAlbedo");
         this.uniformLocations['uNormal'] = gl.getUniformLocation(this.program, "uNormal");
-        this.uniformLocations['uObjectID'] = gl.getUniformLocation(this.program, "uObjectID");
+        this.uniformLocations['uObjectData'] = gl.getUniformLocation(this.program, "uObjectData");
         this.uniformLocations['uViewMatrix'] = gl.getUniformLocation(this.program, "uViewMatrix");
         this.uniformLocations['uNearPlane'] = gl.getUniformLocation(this.program, "uNearPlane");
         this.uniformLocations['uFarPlane'] = gl.getUniformLocation(this.program, "uFarPlane");
@@ -120,30 +120,22 @@ export class GBufferDebugger {
         // Bind the texture to texture unit 0
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, textures['position']);  
-        // Set the sampler uniform to texture unit 0
-        //const textureLocation0 = gl.getUniformLocation(this.program, "uPosition");
         gl.uniform1i(this.uniformLocations['uPosition'], 0);
 
         // Bind the texture to texture unit 0
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, textures['albedo']);  
-        // Set the sampler uniform to texture unit 0
-        //const textureLocation1 = gl.getUniformLocation(this.program, "uAlbedo");
         gl.uniform1i(this.uniformLocations['uAlbedo'], 1);
     
         // Bind the texture to texture unit 0
         gl.activeTexture(gl.TEXTURE2);
         gl.bindTexture(gl.TEXTURE_2D, textures['normal']);  
-        // Set the sampler uniform to texture unit 0
-        //const textureLocation2 = gl.getUniformLocation(this.program, "uNormal");
         gl.uniform1i(this.uniformLocations['uNormal'], 2);
 
         // Bind the texture to texture unit 3
         gl.activeTexture(gl.TEXTURE3);
-        gl.bindTexture(gl.TEXTURE_2D, textures['objid']);  
-        // Set the sampler uniform to texture unit 0
-        //const textureLocation3 = gl.getUniformLocation(this.program, "uObjectID");
-        gl.uniform1i(this.uniformLocations['uObjectID'], 3);
+        gl.bindTexture(gl.TEXTURE_2D, textures['objdata']);  
+        gl.uniform1i(this.uniformLocations['uObjectData'], 3);
 
 
         const camera = scene.getCamera();
@@ -158,15 +150,7 @@ export class GBufferDebugger {
         gl.uniform1i(this.numLightsLocation, numLights);
 
         // Set light uniforms
-        //var mvpMatrix = mat4.create();
         for (let i = 0; i < numLights; ++i) {
-
-            //const modelMatrix : mat4 = lights[i].getModelMatrix();
-            //const modelViewMatrix = mat4.create();
-            //mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);            
-
-
-            //gl.uniformMatrix4fv(this.lightModelViewLocations[i], false, modelViewMatrix);
             gl.uniform3fv(this.lightPositionLocations[i], lights[i].position);
             gl.uniform3fv(this.lightColorLocations[i], lights[i].color);
             gl.uniform1f(this.lightIntensityLocations[i], lights[i].intensity);
