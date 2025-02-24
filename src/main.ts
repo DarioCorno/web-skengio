@@ -16,6 +16,7 @@ async function main() {
 
   //const cube = demo.getEntityByName("Cube01") as ENGINE.Mesh;
   //const torus = demo.getEntityByName("Torus01") as ENGINE.Mesh;
+  const camera = demo.getEntityByName("Camera01");
   const light1 = demo.getEntityByName("Light01") as ENGINE.Light;
   const light2 = demo.getEntityByName("Light02") as ENGINE.Light;
   const sphere = demo.getEntityByName("Sphere01") as ENGINE.Mesh;
@@ -47,6 +48,10 @@ async function main() {
     sphere.position[0] = Math.sin(rot * 1.1) * distance / 1.5;
     sphere.position[1] = 0.0; 
     sphere.position[2] = Math.cos(rot * 1.2) * distance / 1.5;
+
+    //camera.position[0] = Math.sin(rot * 0.3) * 7.0;
+    //camera.position[1] = 7.0;
+    //camera.position[2] = Math.cos(rot * 0.3) * 7.0;
 
     demo.update();
     demo.render();

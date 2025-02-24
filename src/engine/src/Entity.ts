@@ -5,6 +5,7 @@ import { MaterialColor } from './Material';
 export class Entity {
     private gl : WebGL2RenderingContext | null = null;
     public name : string = "";
+    private _id : number = 0;   // ObjectId
     public _position: vec3 = vec3.fromValues(0.0, 0.0, 0.0);
     public _rotation: vec3 = vec3.fromValues(0.0, 0.0, 0.0);
     public _scale: vec3 = vec3.fromValues(1.0, 1.0, 1.0);
@@ -22,6 +23,14 @@ export class Entity {
 
     constructor(gl : WebGL2RenderingContext) {
         this.gl = gl;
+    }
+
+    public set id(id: number) {
+        this._id = id;
+    }
+
+    public get id() : number {
+        return this._id;
     }
 
     public get position() : vec3 {
@@ -59,6 +68,7 @@ export class Entity {
                 const color = vec4.fromValues(light.color[0], light.color[1], light.color[2], 1.0)
                 mesh.material = new MaterialColor( color );
                 mesh.material.name = 'LightDebugMaterial';
+                mesh.material.shininess = 0.0;
                 mesh.position = light.position;
                 mesh.type = Entity.EntityTypes.LightDebug;
                 mesh.init();

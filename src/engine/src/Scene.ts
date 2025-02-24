@@ -13,15 +13,23 @@ export class Scene {
 
   constructor(camera: ENGINE.Camera, start: number, end: number) {
     this.camera = camera;
+    this.camera.id = 0;
     this.startTimecode = start;
     this.endTimecode = end;
   }
 
+  private _entityCount() : number {
+    let count = this.lights.length + this.meshes.length + ((this.camera != null) ? 1 : 0);
+    return count;
+  }
+
   addMesh(mesh: ENGINE.Mesh): void {
+    mesh.id = this._entityCount();
     this.meshes.push(mesh);
   }
 
   addLight(light: ENGINE.Light): void {
+    light.id = this._entityCount();
     this.lights.push(light);
   }
 

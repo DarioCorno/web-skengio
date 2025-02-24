@@ -31,7 +31,7 @@ interface SceneData {
         material: {
             name: string,
             type: string; // "texture", "color", etc.
-            [key: string]: any; // other material properties
+            shininess?: number
         };
         texturePaths?: {
             [key: string]: string;
@@ -229,6 +229,7 @@ export class ProjectManager {
 
             const material = this.createMaterial(meshData.material);
             material.name = meshData.material.name ?? "Material" + performance.now().toString();
+            material.shininess = meshData.material.shininess ?? 0.0;
             mesh.material = material;
 
             if(meshData.texturePaths) {
@@ -251,18 +252,18 @@ export class ProjectManager {
         switch (materialData.type) {
             case 'texture':
                 const matTexture = new ENGINE.Materials.MaterialTexture();
-                matTexture.shininess = materialData.shininess ?? 0;
+                matTexture.shininess = parseFloat(materialData.shininess) ?? 0.0;
                 return matTexture;
             case 'color':
                 const matColor =  new ENGINE.Materials.MaterialColor();
                 matColor.color = vec4.fromValues(1.0, 0.0, 1.0, 1.0);
-                matColor.shininess = materialData.shininess ?? 0;
+                matColor.shininess = parseFloat(materialData.shininess) ?? 0;
                 return matColor;
                 // Add more cases for other material types
             case 'fontatlas':
                 const matAtlas = new ENGINE.Materials.MaterialTexture();
                 matAtlas.isTransparent = false;
-                matAtlas.shininess = 0;
+                matAtlas.shininess = 0.0;
                 return matAtlas;
             default:
                 console.warn(`Unknown material type: ${materialData.type}`);

@@ -43,6 +43,7 @@ export class GBufferDebugger {
         this.uniformLocations['uViewMatrix'] = gl.getUniformLocation(this.program, "uViewMatrix");
         this.uniformLocations['uNearPlane'] = gl.getUniformLocation(this.program, "uNearPlane");
         this.uniformLocations['uFarPlane'] = gl.getUniformLocation(this.program, "uFarPlane");
+        this.uniformLocations['uCameraPosition'] = gl.getUniformLocation(this.program, "uCameraPosition");
         this.uniformLocations['uDebugMode'] = gl.getUniformLocation(this.program, "uDebugMode");
 
         // Check for null uniform locations
@@ -143,6 +144,7 @@ export class GBufferDebugger {
         gl.uniform1f(this.uniformLocations['uNearPlane'], scene.getCamera().near);
         gl.uniform1f(this.uniformLocations['uFarPlane'], scene.getCamera().far);
         gl.uniformMatrix4fv(this.uniformLocations['uViewMatrix'], false, viewMatrix);
+        gl.uniform3fv(this.uniformLocations['uCameraPosition'], camera.position);
 
         //bind the lights
 

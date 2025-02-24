@@ -2,6 +2,7 @@ import gbufferVertexShader from '../shaders/gbufferVertexShader.glsl?raw'
 import gbufferFragmentShader from '../shaders/gbufferFragmentShader.glsl?raw'
 import * as ENGINE from '../ENGINE';
 import { mat4 } from 'gl-matrix';
+import { Entity } from './Entity'
 
 import { GBufferDebugger } from './GBufferDebugger';
 
@@ -49,9 +50,6 @@ export class DeferredRenderer extends ENGINE.Renderer{
         // Get uniform locations.
         this.uModelViewMatrixLocation = this.gl.getUniformLocation(this.program, 'uModelViewMatrix');
         this.uProjectionMatrixLocation = this.gl.getUniformLocation(this.program, 'uProjectionMatrix');
-        //this.uLightPositionLocation = this.gl.getUniformLocation(this.program, 'uLightPosition');
-        //this.uLightColorLocation = this.gl.getUniformLocation(this.program, 'uLightColor');
-        //this.uMaterialColorLocation = this.gl.getUniformLocation(this.program, 'uMaterialColor');
         this.uObjectDataLocation = this.gl.getUniformLocation(this.program, 'uObjectData');
 
         this.buildGBuffer();
@@ -225,7 +223,11 @@ export class DeferredRenderer extends ENGINE.Renderer{
             // Set shaders uniforms.
             gl.uniformMatrix4fv(this.uModelViewMatrixLocation, false, modelViewMatrix);
             gl.uniformMatrix4fv(this.uProjectionMatrixLocation, false, projectionMatrix);
-            gl.uniform4fv(this.uObjectDataLocation, [meshIdx, 0.0, 0.0, 0.0]);
+            if(mesh.type != Entity.EntityTypes.LightDebug) {
+                gl.uniform4fv(this.uObjectDataLocation, [mesh.id, 0.0, 0.0, 0.0]);
+            } else {
+                gl.uniform4fv(this.uObjectDataLocation, [-mesh.id, 0.0, 0.0, 0.0]);
+            }
       
             gl.disable(gl.BLEND);
             

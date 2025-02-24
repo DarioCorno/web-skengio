@@ -22,20 +22,35 @@ uniform Light uLights [MAX_LIGHTS];
 uniform int uNumLights;
 
 uniform int uDebugMode;
-uniform float uMaterialShinines;
 
 // #####################à CAMERA UNIFORMS ###################
 uniform mat4 uViewMatrix;
 uniform float uNearPlane; // Near plane distance
 uniform float uFarPlane;
+uniform vec3 uCameraPosition;      // Needed to compute view direction
 
 out vec4 fragColor;
 
 vec3 getObjectColor(float id) {
-  float r = max( fract( sin(id * 12.9898) * 123.1), 0.4);
-  float g = max( fract( sin(id * 78.233)  * 23.13), 0.4);
-  float b = max( fract( sin(id * 39.346)  * 3.123), 0.4);
-  return vec3(r, g, b);
+    // Simple hash function to generate pseudo-random values
+    uint h = uint(id);
+    h = (h ^ 61u) ^ (h >> 16u);
+    h *= 9u;
+    h = h ^ (h >> 4u);
+    h *= 0x27d4eb2du;
+    h = h ^ (h >> 15u);
+
+    // Map the hash to RGB color components, making them brighter
+    float r = float((h >> 16u) & 255u) / 255.0;
+    float g = float((h >> 8u) & 255u) / 255.0;
+    float b = float(h & 255u) / 255.0;
+
+    // Adjust brightness by scaling and clamping
+    vec3 color = vec3(r, g, b);
+    color = color * 1.5; // Increase brightness (adjust the multiplier)
+    color = clamp(color, 0.0, 1.0); // Clamp to prevent overflow
+
+    return color;
 }
 
 void main() {
@@ -70,26 +85,43 @@ void main() {
         vec3 position = texture(uPosition, vUV).xyz;
         vec4 albedo = texture(uAlbedo, vUV);
         vec3 normal = texture(uNormal, vUV).xyz;
-        vec3 ambient = albedo.rgb * vec3(0.1, 0.1, 0.1);
+        vec3 ambient = albedo.rgb * vec3(0.2, 0.2, 0.2);
     
         // Compute the direction to the light source
         vec3 fragPos = position;
         vec3 norm = normalize(normal);
 
+        vec4 objData = texture(uObjectData, vUV);
+        float objId = objData.r;
+        float matShininess = objData.g;
         vec3 color = vec3(0.0);
-        for(int i = 0; i < uNumLights; i++) {
-            //vec3 lightPos = (uLights[i].uModelViewMatrix * vec4(uLights[i].uLightPosition, 1.0)).xyz;
-            vec3 lightPos = (uViewMatrix * vec4(uLights[i].uLightPosition, 1.0)).xyz;
-            vec3 lightDir = normalize(lightPos - fragPos);
-            // Diffuse lighting angle
-            float diffAngle = max(dot(norm,lightDir), 0.0);
 
-            vec3 diffuseColor = uLights[i].uLightColor.rgb * albedo.rgb * diffAngle * uLights[i].uLightIntensity; // Use light intensity
+        //if objeId is negative, it's a debug mesh
+        if(objId >= 0.0) {
+            
+            vec3 viewDir = normalize(uCameraPosition - fragPos);
 
-            color += diffuseColor; //albedo.rgb;   
+            for(int i = 0; i < uNumLights; i++) {
+                //vec3 lightPos = (uLights[i].uModelViewMatrix * vec4(uLights[i].uLightPosition, 1.0)).xyz;
+                vec3 lightPos = (uViewMatrix * vec4(uLights[i].uLightPosition, 1.0)).xyz;
+                vec3 lightDir = normalize(lightPos - fragPos);
+                // Diffuse lighting angle
+                float diffAngle = max(dot(norm,lightDir), 0.0);
+
+                vec3 diffuseColor = uLights[i].uLightColor.rgb * albedo.rgb * diffAngle * uLights[i].uLightIntensity; // Use light intensity
+
+                // Specular term using Blinn-Phong:
+                vec3 halfwayDir = normalize(lightDir + viewDir);
+                float spec = pow(max(dot(norm, halfwayDir), 0.0), matShininess);   //default global shininess, will use material shininess
+
+                color += (diffuseColor * spec);
+            }
+
+            color += ambient;
+        } else {
+            //debug mesh, render it white without lighting for now
+            color = vec3(1.0,1.0,1.0);
         }
-
-        color += ambient;
         fragColor = vec4(color.r, color.g, color.b, albedo.a); 
 
     }
