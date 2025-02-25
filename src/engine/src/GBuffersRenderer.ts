@@ -3,7 +3,7 @@ import fragmentShaderSource from '../shaders/deferredFragmentShader.glsl?raw';
 import * as ENGINE from '../ENGINE'
 import { mat4 } from 'gl-matrix';
 
-export class GBufferDebugger {
+export class GBuffersRenderer {
     private gl: WebGL2RenderingContext;
     private program: WebGLProgram;
     private vao: WebGLVertexArrayObject | null;
@@ -109,6 +109,14 @@ export class GBufferDebugger {
     public render(textures: { [key: string]: WebGLTexture }, scene: ENGINE.Scene): void {
         const gl = this.gl;
     
+
+        // Enable the stencil test (if not already enabled)
+        gl.enable(gl.STENCIL_TEST);
+        // Set stencil function to only pass fragments with a stencil value of 1
+        gl.stencilFunc(gl.EQUAL, 1, 0xFF);
+        // Disable writing to the stencil buffer during this pass
+        gl.stencilMask(0x00);
+
         // Use the shader program
         gl.useProgram(this.program);
     

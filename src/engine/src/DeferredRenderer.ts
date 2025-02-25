@@ -4,7 +4,7 @@ import * as ENGINE from '../ENGINE';
 import { mat4 } from 'gl-matrix';
 import { Entity } from './Entity'
 
-import { GBufferDebugger } from './GBufferDebugger';
+import { GBuffersRenderer } from './GBuffersRenderer';
 
 export class DeferredRenderer extends ENGINE.Renderer{
     private fbo: WebGLFramebuffer | null;
@@ -21,7 +21,7 @@ export class DeferredRenderer extends ENGINE.Renderer{
     //private uMaterialColorLocation: WebGLUniformLocation | null = null;
     private uObjectDataLocation : WebGLUniformLocation | null = null;
 
-    private gbufDebugger: GBufferDebugger | null = null;
+    private gBuffersRenderer: GBuffersRenderer | null = null;
 
     constructor(gl: WebGL2RenderingContext, width: number, height: number) {
         super(gl);
@@ -34,7 +34,7 @@ export class DeferredRenderer extends ENGINE.Renderer{
     
         this.init();
 
-        this.gbufDebugger = new GBufferDebugger(this.gl);
+        this.gBuffersRenderer = new GBuffersRenderer(this.gl);
     }
 
     init(): void {
@@ -43,7 +43,7 @@ export class DeferredRenderer extends ENGINE.Renderer{
         //setup gbuffer shader
         this.program = ENGINE.Utils.ShadersUtility.createProgram(this.gl, gbufferVertexShader, gbufferFragmentShader);
         if(!this.program)
-            throw new Error('Cannot compile gbuffer vertex program');
+            throw new Error('Cannot compile gBuffersRenderer shader program');
 
         this.gl.useProgram(this.program);
 
@@ -52,34 +52,42 @@ export class DeferredRenderer extends ENGINE.Renderer{
         this.uProjectionMatrixLocation = this.gl.getUniformLocation(this.program, 'uProjectionMatrix');
         this.uObjectDataLocation = this.gl.getUniformLocation(this.program, 'uObjectData');
 
-        this.buildGBuffer();
+        this.buildGBuffers();
 
     }
 
 
     setDebugMode(mode: number = 0) : void {
-        if(this.gbufDebugger) {
-            this.gbufDebugger.debugMode = mode;
+        if(this.gBuffersRenderer) {
+            this.gBuffersRenderer.debugMode = mode;
         } else {
-            throw new Error('GBufDebugger not initialized. Cannot set debugMode');
+            throw new Error('gBuffersRenderer not initialized. Cannot set debugMode');
         }
     }
 
-    buildGBuffer() {
+    private deleteGBuffers() {
         const gl = this.gl;
 
+        //delete all the things
         if(this.fbo != null) {
-          //delete framebuffer if any
-          gl.deleteFramebuffer(this.fbo);
+            //delete framebuffer if any
+            gl.deleteFramebuffer(this.fbo);
+  
+            // delete all textures if set
+            for (const texture of Object.values(this.textures)) {
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.deleteTexture(texture);
+            }          
+  
+            gl.bindTexture(gl.TEXTURE_2D, null);
+          }
+    }
 
-          // delete all textures if set
-          for (const texture of Object.values(this.textures)) {
-              gl.bindTexture(gl.TEXTURE_2D, texture);
-              gl.deleteTexture(texture);
-          }          
+    buildGBuffers() {
+        const gl = this.gl;
 
-          gl.bindTexture(gl.TEXTURE_2D, null);
-        }
+        //delete all the things
+        this.deleteGBuffers();
 
         //build framebuffer textures
         this.fbo = gl.createFramebuffer();
@@ -166,7 +174,7 @@ export class DeferredRenderer extends ENGINE.Renderer{
         console.log('Renderer resize: ' + width + '-' + height);
         gl.viewport(0, 0, width, height);
 
-        this.buildGBuffer();
+        this.buildGBuffers();
 
     }
   
@@ -198,11 +206,24 @@ export class DeferredRenderer extends ENGINE.Renderer{
         // Set the draw buffers for multiple render targets
         gl.drawBuffers(Object.keys(this.textures).map((_, i) => gl.COLOR_ATTACHMENT0 + i));
     
+        //enable stencil so that fragment shader isn't run where there are no scene fragments
+        gl.enable(gl.STENCIL_TEST);
+        gl.clearStencil(0);
+
         // Clear all the buffers
         gl.enable(gl.DEPTH_TEST);
         gl.cullFace(gl.BACK);
         gl.depthMask(true);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+
+        // Configure stencil function: always pass and write a reference value of 1
+        gl.stencilFunc(gl.ALWAYS, 1, 0xFF); // Always pass, reference value 1, mask 0xFF
+        
+        // Configure stencil operations:
+        // For stencil fail, depth fail, and depth pass, set up operations.
+        // Here we want to replace the stencil value on depth pass.        
+        gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+        gl.stencilMask(0xFF); // Enable writing to all bits of the stencil buffer
 
         const viewMatrix = camera.getViewMatrix();
         const projectionMatrix = camera.getProjectionMatrix();
@@ -246,7 +267,7 @@ export class DeferredRenderer extends ENGINE.Renderer{
         // Unbind the framebuffer
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        this.gbufDebugger?.render(this.textures, scene);
+        this.gBuffersRenderer?.render(this.textures, scene);
         
       }    
   }

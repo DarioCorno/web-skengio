@@ -2,6 +2,7 @@
 import * as ENGINE from '../ENGINE'; // Import your engine classes
 import { vec3, vec4 } from 'gl-matrix';
 import { Entity } from './Entity'
+import { PerformancesDebugger } from '../Utils';
 
 interface SceneData {
     name: string;
@@ -44,12 +45,19 @@ interface ProjectData {
     scenes: SceneData[];
     transitionDuration: number; // Duration of crossfade in milliseconds
     canvasSelector: string;
+    singleSceneProject?:boolean;
+    measureGPUPerformances?: boolean;
     configs: {
         enableGUI: boolean;
         showDebug: boolean; 
         useBitmapFontAtlas: boolean;  
         debugMode: number; 
     }
+}
+
+interface ProjectConfigs {
+    singleSceneProject: boolean;
+    measureGPUPerformances: boolean;
 }
 
 export class ProjectManager {
@@ -66,12 +74,23 @@ export class ProjectManager {
     private transitionStartTime: number | null = null;    
     private bitmapFontAtlas : ENGINE.Utils.BitmapFontAtlas | null = null;
 
+    private pConfigs : ProjectConfigs = {
+        measureGPUPerformances: false,
+        singleSceneProject: false
+    };
+    private firstUpdate: boolean = false;   //did at least one update function ran? Used by single scene projects    
+    private GPUPerfsDebugger : PerformancesDebugger | null = null;
+
     constructor() {
+        console.log('Initializing project...');
     }
 
     async loadProject(projectJson: any) : Promise<void> {
         try {
             this.projectData = projectJson as ProjectData; // Type the JSON data
+
+            this.pConfigs.measureGPUPerformances = (this.projectData.measureGPUPerformances ?? false);
+
             //create a window manager
             this.wm = new ENGINE.WindowManager(this.projectData.canvasSelector, this.projectData.configs);
             
@@ -80,6 +99,10 @@ export class ProjectManager {
                 this.textureLoader = new ENGINE.Utils.TextureLoader(this.gl);
             } else {
                 throw new Error('Cannot create TextureLoader. GL missing');
+            }
+
+            if(this.pConfigs.measureGPUPerformances) {
+                this.GPUPerfsDebugger = new PerformancesDebugger(this.gl);
             }
     
             if(this.projectData.configs.useBitmapFontAtlas) {
@@ -290,6 +313,8 @@ export class ProjectManager {
     update() {
         if(!this.wm) return;
 
+        if(this.pConfigs.singleSceneProject && this.firstUpdate == true) return;
+
         this.wm.update();
         const time = this.wm.timer.getTime().elapsed / 1000.0;
 
@@ -335,11 +360,33 @@ export class ProjectManager {
             this.currentScene.opacity = 1; // Ensure full opacity if no transition
         }
 
+        this.firstUpdate = true;
     }
 
     render() {
-        if(this.currentScene && this.wm?.isReady())
-            this.wm.renderer.render(this.currentScene);
+        if(this.currentScene && this.wm?.isReady()) {
+            if(this.pConfigs.measureGPUPerformances && this.GPUPerfsDebugger) {
+                this.GPUPerfsDebugger.measureRenderPass(() => {
+
+                    this.wm.renderer.render(this.currentScene);
+
+                })
+                .then((gpuTimeMs) => {
+                  if (gpuTimeMs >= 0) {
+                    // Calculate approximate FPS based solely on the measured GPU time
+                    const fps = 1000 / gpuTimeMs;
+                    console.log(`GPU Time: ${gpuTimeMs.toFixed(2)} ms, approx FPS: ${fps.toFixed(2)}`);
+                  } else {
+                    //console.log("GPU timing measurement unavailable due to disjoint event.");
+                  }
+                })
+                .catch((error) => {
+                  console.error("Performance measurement error:", error);
+                });
+            } else {
+                this.wm.renderer.render(this.currentScene);
+            }
+        }
     }
 
     getCurrentScene(): ENGINE.Scene | null {

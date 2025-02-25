@@ -3,7 +3,7 @@ import * as ENGINE from '../ENGINE';
 import { MaterialColor } from './Material';
 
 export class Entity {
-    private gl : WebGL2RenderingContext | null = null;
+    public gl : WebGL2RenderingContext | null = null;
     public name : string = "";
     private _id : number = 0;   // ObjectId
     public _position: vec3 = vec3.fromValues(0.0, 0.0, 0.0);

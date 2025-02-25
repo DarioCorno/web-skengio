@@ -38,7 +38,8 @@ export class WindowManager {
       if(!this.canvas) throw new Error('Cannot find canvas element ' + canvasSelector);
       
       this.gl = this.canvas.getContext('webgl2',{
-          premultipliedAlpha: false  // Ask for non-premultiplied alpha
+          premultipliedAlpha: false,  // Ask for non-premultiplied alpha
+          powerPreference: 'high-performance'
       })!;
       if (!this.gl) throw new Error('WebGL not supported.');     
 

@@ -4,7 +4,6 @@ import { vec3, vec4 } from 'gl-matrix';
 import projectJson from './project.json'
 
 async function main() {
-  console.log('Initializing scene...');
   
   const demo = new ENGINE.ProjectManager();
   await demo.loadProject(projectJson);
@@ -14,6 +13,7 @@ async function main() {
     demo.handleResize();
   });
 
+
   //const cube = demo.getEntityByName("Cube01") as ENGINE.Mesh;
   //const torus = demo.getEntityByName("Torus01") as ENGINE.Mesh;
   const camera = demo.getEntityByName("Camera01");
@@ -21,6 +21,7 @@ async function main() {
   const light2 = demo.getEntityByName("Light02") as ENGINE.Light;
   const sphere = demo.getEntityByName("Sphere01") as ENGINE.Mesh;
   let rot = 0;
+
   function animate() {
 
     requestAnimationFrame(animate);
@@ -28,13 +29,6 @@ async function main() {
     const deltaTime = time.deltaTime;
 
     rot += 0.004;
-
-    //cube.rotation[0] += deltaTime * 0.00002;
-    //cube.rotation[1] += deltaTime * 0.00007;
-    //cube.rotation[2] += deltaTime * 0.0002;
-    //torus.rotation[0] += deltaTime * 0.0001;
-    //torus.rotation[1] += deltaTime * 0.00015;
-    //torus.rotation[2] += deltaTime * 0.0002;
 
     const distance = 4.5;
     light1.position[0] = Math.cos(rot) * distance;
@@ -48,10 +42,6 @@ async function main() {
     sphere.position[0] = Math.sin(rot * 1.1) * distance / 1.5;
     sphere.position[1] = 0.0; 
     sphere.position[2] = Math.cos(rot * 1.2) * distance / 1.5;
-
-    //camera.position[0] = Math.sin(rot * 0.3) * 7.0;
-    //camera.position[1] = 7.0;
-    //camera.position[2] = Math.cos(rot * 0.3) * 7.0;
 
     demo.update();
     demo.render();

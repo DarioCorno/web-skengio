@@ -74,7 +74,10 @@ export class Mesh extends Entity {
   }
 
   init(): void {
+    if(!this.gl) return;
+
     const gl = this.gl;
+    
     // Create and fill position buffer
     this.positionsBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.positionsBuffer);

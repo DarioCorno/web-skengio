@@ -1,5 +1,6 @@
 {
     "canvasSelector" : "my-canvas",
+    "measureGPUPerformances" : false,
     "configs" : {
         "enableGUI" : true,
         "showDebug" : false,
