@@ -23,7 +23,7 @@ uniform int uNumLights;
 
 uniform int uDebugMode;
 
-// #####################à CAMERA UNIFORMS ###################
+// ##################### CAMERA UNIFORMS ###################
 uniform mat4 uViewMatrix;
 uniform float uNearPlane; // Near plane distance
 uniform float uFarPlane;
@@ -120,7 +120,7 @@ void main() {
             color += ambient;
         } else {
             //debug mesh, render it white without lighting for now
-            color = vec3(1.0,1.0,1.0);
+            color = albedo.rgb;
         }
         fragColor = vec4(color.r, color.g, color.b, albedo.a); 
 

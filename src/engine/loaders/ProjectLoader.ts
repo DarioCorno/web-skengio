@@ -294,6 +294,7 @@ export class ProjectManager {
         }
     }
 
+    
     handleResize() {
         // Get the new dimensions
         const winWidth = window.innerWidth;
@@ -309,6 +310,7 @@ export class ProjectManager {
             scn.getCamera().handleResize(width, height);
         })
     }
+    
 
     update() {
         if(!this.wm) return;

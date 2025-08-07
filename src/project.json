@@ -5,7 +5,8 @@
         "enableGUI" : true,
         "showDebug" : false,
         "useBitmapFontAtlas" : true,
-        "debugMode" : 0
+        "debugMode" : 0,
+        "enableInput" : true
     },
     "scenes": [
         {

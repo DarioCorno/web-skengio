@@ -1,5 +1,5 @@
-import { MaterialColor } from './src/Material'
-import { MaterialTexture } from './src/Material'
+import { MaterialColor } from './materials/Material'
+import { MaterialTexture } from './materials/Material'
 
 export {
     MaterialColor,

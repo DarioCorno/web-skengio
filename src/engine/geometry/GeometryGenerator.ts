@@ -1,6 +1,6 @@
-// src/engine/GeometryGenerator.ts
+// src/engine/utils/GeometryGenerator.ts
 
-import { BitmapFontAtlas } from "./BitmapFontAtlas";
+import { BitmapFontAtlas } from "../text/BitmapFontAtlas";
 import { vec3 } from 'gl-matrix'
 
 export class GeometryGenerator {
@@ -21,57 +21,33 @@ export class GeometryGenerator {
 
         const positions = new Float32Array([
             // Front face
-            //-0.5, -0.5,  0.5,  
-            //0.5, -0.5,  0.5,  
-            //0.5,  0.5,  0.5,  
-            //-0.5,  0.5,  0.5,
             -halfX, -halfY, halfZ, 
             halfX, -halfY, halfZ, 
             halfX, halfY, halfZ, 
             -halfX, halfY, halfZ,
 
             // Back face
-            //0.5, -0.5, -0.5, 
-            //-0.5, -0.5, -0.5, 
-            //-0.5,  0.5, -0.5,  
-            //0.5,  0.5, -0.5,
-            halfX, -halfY, -halfZ
+            halfX, -halfY, -halfZ,
             -halfX, -halfY, -halfZ,
             -halfX, halfY, -halfZ,
             halfX, halfY, -halfZ,
 
             // Left face
-            //-0.5, -0.5, -0.5, 
-            //-0.5, -0.5,  0.5, 
-            //-0.5,  0.5,  0.5, 
-            //-0.5,  0.5, -0.5,
             -halfX, -halfY, -halfZ,
             -halfX, -halfY, halfZ,
             -halfX, halfY, halfZ,
             -halfX, halfY, -halfZ,
             // Right face
-            //0.5, -0.5,  0.5,  
-            //0.5, -0.5, -0.5,  
-            //0.5,  0.5, -0.5,  
-            //0.5,  0.5,  0.5,
             halfX, -halfY, halfZ,
             halfX, -halfY, -halfZ,
             halfX, halfY, -halfZ,
             halfX, halfY, halfZ,
             // Top face
-            //-0.5,  0.5,  0.5,  
-            //0.5,  0.5,  0.5,  
-            //0.5,  0.5, -0.5, 
-            //-0.5,  0.5, -0.5,
             -halfX, halfY, halfZ,
             halfX, halfY, halfZ,
             halfX, halfY, -halfZ,
             -halfX, halfY, -halfZ,
             // Bottom face
-            //-0.5, -0.5, -0.5,  
-            //0.5, -0.5, -0.5,  
-            //0.5, -0.5,  0.5, 
-            //-0.5, -0.5,  0.5,
             -halfX, -halfY, -halfZ,
             halfX, -halfY, -halfZ,
             halfX, -halfY, halfZ,
@@ -459,6 +435,7 @@ export class GeometryGenerator {
             }
         }
 
+        // Generate indices with correct winding order for front-face culling
         for (let i = 0; i < radialSegments; i++) {
             for (let j = 0; j < tubularSegments; j++) {
                 const a = i * (tubularSegments + 1) + j;
@@ -466,12 +443,13 @@ export class GeometryGenerator {
                 const c = a + tubularSegments + 1;
                 const d = c + 1;
 
-                _indices.push(a, b, d);
-                _indices.push(a, d, c);
+                // Fixed winding order: counter-clockwise when viewed from outside
+                // This ensures front faces are visible with GL_CCW front face orientation
+                _indices.push(a, d, b);  // Changed order
+                _indices.push(a, c, d);  // Changed order
             }
         }
 
         return GeometryGenerator.copyToMeshData(_positions, _normals, _uvs, _indices);
     }
   }
-  

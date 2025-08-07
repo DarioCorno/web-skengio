@@ -1,6 +1,6 @@
 import { vec3, vec4, mat4 } from 'gl-matrix';
 import * as ENGINE from '../ENGINE';
-import { MaterialColor } from './Material';
+import { MaterialColor } from '../materials/Material';
 
 export class Entity {
     public gl : WebGL2RenderingContext | null = null;

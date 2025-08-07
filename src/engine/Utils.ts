@@ -1,10 +1,11 @@
 import { ShadersUtility } from './utils/ShadersUtilityClass'
-import { GeometryGenerator} from './utils/GeometryGenerator';
-import { TextureLoader } from './utils/TextureLoader'
-import { BitmapFontAtlas } from './utils/BitmapFontAtlas';
+import { GeometryGenerator} from './geometry/GeometryGenerator';
+import { TextureLoader } from './loaders/TextureLoader'
+import { BitmapFontAtlas } from './text/BitmapFontAtlas';
 import { Timer } from './utils/Timer';
 import { Math } from './utils/MathUtils';
 import { PerformancesDebugger } from './utils/PerformancesDebugger'
+import { UniformLocationCache } from './utils/UniformLocationCache';
 
 export {
     ShadersUtility,
@@ -13,5 +14,6 @@ export {
     BitmapFontAtlas,
     Timer,
     Math,
-    PerformancesDebugger
+    PerformancesDebugger,
+    UniformLocationCache
 }
