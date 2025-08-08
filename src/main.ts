@@ -22,7 +22,16 @@ async function main() {
   const light1 = demo.getEntityByName("Light01") as ENGINE.Light;
   const light2 = demo.getEntityByName("Light02") as ENGINE.Light;
   const sphere = demo.getEntityByName("Sphere01") as ENGINE.Mesh;
+  const torus = demo.getEntityByName("Torus01") as ENGINE.Mesh;
+  
+  // Mark the torus as static since it won't move
+  if (torus) {
+    torus.setStatic(true);
+    console.log('Torus marked as static - its matrices will only be calculated once');
+  }
+  
   let rot = 0;
+  let frameCount = 0;
 
   if (inputManager) {
     
@@ -71,19 +80,36 @@ async function main() {
 
     // Update animation
     rot += 0.004;
+    frameCount++;
 
     const distance = 4.5;
-    light1.position[0] = Math.cos(rot) * distance;
-    light1.position[1] = 0.0;
-    light1.position[2] = Math.sin(rot) * distance;
+    light1.setPosition( vec3.fromValues(
+      Math.cos(rot) * distance,
+      0.0,
+      Math.sin(rot) * distance
+    ));
     
-    light2.position[0] = Math.cos(rot * 1.5) * distance / 2.0;
-    light2.position[1] = Math.sin(rot / 2.0) * distance / 2.0;
-    light2.position[2] = Math.sin(rot * 1.5) * distance / 2.0;
+    light2.setPosition( vec3.fromValues(
+      Math.cos(rot * 1.5) * distance / 2.0,
+      Math.sin(rot / 2.0) * distance / 2.0,
+      Math.sin(rot * 1.5) * distance / 2.0
+    ));
 
-    sphere.position[0] = Math.sin(rot * 1.1) * distance / 1.5;
-    sphere.position[1] = 0.0; 
-    sphere.position[2] = Math.cos(rot * 1.2) * distance / 1.5;
+    sphere.setPosition( vec3.fromValues(
+      Math.sin(rot * 1.1) * distance / 1.5,
+      0.0,
+      Math.cos(rot * 1.2) * distance / 1.5
+    ));
+    
+    // Log matrix recalculation status every 300 frames
+    if (frameCount % 300 === 0) {
+      console.log('Matrix Status Check:');
+      console.log(`  Sphere (dynamic): dirty=${sphere.isDirty()}, static=${sphere.isStatic()}`);
+      if (torus) {
+        console.log(`  Torus (static): dirty=${torus.isDirty()}, static=${torus.isStatic()}`);
+      }
+      console.log(`  Camera: viewDirty=${camera.isViewMatrixDirty()}, projDirty=${camera.isProjectionMatrixDirty()}`);
+    }
 
     // Update scene
     demo.update();

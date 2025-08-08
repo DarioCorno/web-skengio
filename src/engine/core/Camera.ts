@@ -4,48 +4,225 @@ import { Entity } from './Entity';
 
 export class Camera extends Entity {
   public name : string = "";
-  // Transform fields inherited from Entity:
-  // public position = vec3.fromValues(0.0, 0.0, 5.0);
-  // public rotation = vec3.fromValues(0, 0, 0);
-  // public scale = vec3.fromValues(1,1,1);
-
-  public target = vec3.create();
-
+  
+  // Camera-specific properties
+  private _target: vec3 = vec3.create();
+  
   // Projection settings
-  public fieldOfView: number; // in degrees
-  public aspect: number;
-  public near: number;
-  public far: number;
+  private _fieldOfView: number; // in degrees
+  private _aspect: number;
+  private _near: number;
+  private _far: number;
+  
+  // Matrix caching for camera-specific matrices
+  private _viewMatrix: mat4 = mat4.create();
+  private _projectionMatrix: mat4 = mat4.create();
+  private _viewMatrixDirty: boolean = true;
+  private _projectionMatrixDirty: boolean = true;
+  
+  // Combined matrix caching
+  private _viewProjectionMatrix: mat4 = mat4.create();
+  private _viewProjectionMatrixDirty: boolean = true;
 
   constructor(gl: WebGL2RenderingContext, fieldOfView = 45, near = 0.1, far = 100) {
     super(gl);
-    this.fieldOfView = fieldOfView;
-    this.aspect = 1;
-    this.near = near;
-    this.far = far;
+    this._fieldOfView = fieldOfView;
+    this._aspect = 1;
+    this._near = near;
+    this._far = far;
     this.type = Entity.EntityTypes.Camera;
+  }
+  
+  /**
+   * Get the target position
+   * @returns {vec3} The target position
+   */
+  public get target(): vec3 {
+    return this._target;
+  }
+  
+  /**
+   * Set the target position and mark view matrix as dirty
+   * @param {vec3} target - The new target position
+   */
+  public set target(target: vec3) {
+    if (!vec3.exactEquals(this._target, target)) {
+      vec3.copy(this._target, target);
+      this.markViewMatrixDirty();
+    }
+  }
+  
+  /**
+   * Get the field of view
+   * @returns {number} The field of view in degrees
+   */
+  public get fieldOfView(): number {
+    return this._fieldOfView;
+  }
+  
+  /**
+   * Set the field of view and mark projection matrix as dirty
+   * @param {number} fov - The new field of view in degrees
+   */
+  public set fieldOfView(fov: number) {
+    if (this._fieldOfView !== fov) {
+      this._fieldOfView = fov;
+      this.markProjectionMatrixDirty();
+    }
+  }
+  
+  /**
+   * Get the aspect ratio
+   * @returns {number} The aspect ratio
+   */
+  public get aspect(): number {
+    return this._aspect;
+  }
+  
+  /**
+   * Set the aspect ratio and mark projection matrix as dirty
+   * @param {number} aspect - The new aspect ratio
+   */
+  public set aspect(aspect: number) {
+    if (this._aspect !== aspect) {
+      this._aspect = aspect;
+      this.markProjectionMatrixDirty();
+    }
+  }
+  
+  /**
+   * Get the near plane distance
+   * @returns {number} The near plane distance
+   */
+  public get near(): number {
+    return this._near;
+  }
+  
+  /**
+   * Set the near plane distance and mark projection matrix as dirty
+   * @param {number} near - The new near plane distance
+   */
+  public set near(near: number) {
+    if (this._near !== near) {
+      this._near = near;
+      this.markProjectionMatrixDirty();
+    }
+  }
+  
+  /**
+   * Get the far plane distance
+   * @returns {number} The far plane distance
+   */
+  public get far(): number {
+    return this._far;
+  }
+  
+  /**
+   * Set the far plane distance and mark projection matrix as dirty
+   * @param {number} far - The new far plane distance
+   */
+  public set far(far: number) {
+    if (this._far !== far) {
+      this._far = far;
+      this.markProjectionMatrixDirty();
+    }
+  }
+  
+  /**
+   * Override Entity's markDirty to also mark view matrix as dirty
+   */
+  protected markDirty(): void {
+    super.markDirty();
+    this.markViewMatrixDirty();
+  }
+  
+  /**
+   * Mark the view matrix as dirty
+   */
+  private markViewMatrixDirty(): void {
+    this._viewMatrixDirty = true;
+    this._viewProjectionMatrixDirty = true;
+  }
+  
+  /**
+   * Mark the projection matrix as dirty
+   */
+  private markProjectionMatrixDirty(): void {
+    this._projectionMatrixDirty = true;
+    this._viewProjectionMatrixDirty = true;
+  }
+  
+  /**
+   * Check if view matrix needs recalculation
+   * @returns {boolean} True if view matrix is dirty
+   */
+  public isViewMatrixDirty(): boolean {
+    return this._viewMatrixDirty;
+  }
+  
+  /**
+   * Check if projection matrix needs recalculation
+   * @returns {boolean} True if projection matrix is dirty
+   */
+  public isProjectionMatrixDirty(): boolean {
+    return this._projectionMatrixDirty;
   }
 
   /**
-   * Get the projection matrix for this camera
+   * Get the projection matrix for this camera (cached)
    * @returns {mat4} The projection matrix
    */
   getProjectionMatrix(): mat4 {
-    const out = mat4.create();
-    // Convert FOV to radians
-    const fovRad = (this.fieldOfView * Math.PI) / 180;
-    mat4.perspective(out, fovRad, this.aspect, this.near, this.far);
-    return out;
+    if (this._projectionMatrixDirty) {
+      // Convert FOV to radians
+      const fovRad = (this._fieldOfView * Math.PI) / 180;
+      mat4.perspective(this._projectionMatrix, fovRad, this._aspect, this._near, this._far);
+      this._projectionMatrixDirty = false;
+    }
+    return this._projectionMatrix;
   }
 
   /**
-   * Get the view matrix for this camera
+   * Get the view matrix for this camera (cached)
    * @returns {mat4} The view matrix
    */
-  getViewMatrix() : mat4 {
-    var viewMatrix = mat4.create();
-    mat4.lookAt(viewMatrix, this.position, this.target, vec3.fromValues(0, 1, 0));
-    return viewMatrix;   
+  getViewMatrix(): mat4 {
+    if (this._viewMatrixDirty) {
+      mat4.lookAt(this._viewMatrix, this.position, this._target, vec3.fromValues(0, 1, 0));
+      this._viewMatrixDirty = false;
+    }
+    return this._viewMatrix;
+  }
+  
+  /**
+   * Get the combined view-projection matrix (cached)
+   * @returns {mat4} The view-projection matrix
+   */
+  getViewProjectionMatrix(): mat4 {
+    if (this._viewProjectionMatrixDirty) {
+      const view = this.getViewMatrix();
+      const proj = this.getProjectionMatrix();
+      mat4.multiply(this._viewProjectionMatrix, proj, view);
+      this._viewProjectionMatrixDirty = false;
+    }
+    return this._viewProjectionMatrix;
+  }
+  
+  /**
+   * Get cached matrices without recalculation
+   * Warning: May return outdated matrices if dirty flags are set
+   * @returns {Object} Object containing cached matrices
+   */
+  getCachedMatrices(): {
+    view: mat4;
+    projection: mat4;
+    viewProjection: mat4;
+  } {
+    return {
+      view: this._viewMatrix,
+      projection: this._projectionMatrix,
+      viewProjection: this._viewProjectionMatrix
+    };
   }
 
   /**
@@ -53,7 +230,7 @@ export class Camera extends Entity {
    * @param {number} width - New canvas width
    * @param {number} height - New canvas height
    */
-  handleResize(width: number, height: number) {
+  handleResize(width: number, height: number): void {
     this.aspect = width / height;
   }
 
@@ -63,7 +240,7 @@ export class Camera extends Entity {
    */
   getForwardVector(): vec3 {
     const forward = vec3.create();
-    vec3.subtract(forward, this.target, this.position);
+    vec3.subtract(forward, this._target, this.position);
     vec3.normalize(forward, forward);
     return forward;
   }
@@ -123,7 +300,7 @@ export class Camera extends Entity {
    * @returns {number} Distance to target
    */
   getDistanceToTarget(): number {
-    return vec3.distance(this.position, this.target);
+    return vec3.distance(this.position, this._target);
   }
 
   /**
@@ -132,9 +309,10 @@ export class Camera extends Entity {
    */
   setDistanceToTarget(distance: number): void {
     const direction = vec3.create();
-    vec3.subtract(direction, this.position, this.target);
+    vec3.subtract(direction, this.position, this._target);
     vec3.normalize(direction, direction);
-    vec3.scaleAndAdd(this.position, this.target, direction, distance);
+    vec3.scaleAndAdd(this.position, this._target, direction, distance);
+    this.markDirty();
   }
 
   /**
@@ -143,10 +321,7 @@ export class Camera extends Entity {
    * @param {vec3} worldUp - Optional world up vector (defaults to Y-up)
    */
   lookAt(target: vec3, worldUp: vec3 = vec3.fromValues(0, 1, 0)): void {
-    vec3.copy(this.target, target);
-    // Note: The actual lookAt transformation is handled by getViewMatrix()
-    // This method just updates the target. If you want to also set position:
-    // use setPositionAndTarget() method instead
+    this.target = target;
   }
 
   /**
@@ -155,8 +330,10 @@ export class Camera extends Entity {
    * @param {vec3} target - New target position
    */
   setPositionAndTarget(position: vec3, target: vec3): void {
-    vec3.copy(this.position, position);
-    vec3.copy(this.target, target);
+    // Set position through Entity setter
+    this.setPosition(position);
+    // Set target through Camera setter
+    this.target = target;
   }
 
   /**
@@ -164,8 +341,11 @@ export class Camera extends Entity {
    * @param {vec3} delta - Movement delta
    */
   translate(delta: vec3): void {
-    vec3.add(this.position, this.position, delta);
-    vec3.add(this.target, this.target, delta);
+    // Use parent translate for position
+    super.translate(delta);
+    // Update target
+    vec3.add(this._target, this._target, delta);
+    this.markViewMatrixDirty();
   }
 
   /**
@@ -173,7 +353,7 @@ export class Camera extends Entity {
    * @param {vec3} delta - Movement delta
    */
   translatePosition(delta: vec3): void {
-    vec3.add(this.position, this.position, delta);
+    super.translate(delta);
   }
 
   /**
@@ -181,7 +361,8 @@ export class Camera extends Entity {
    * @param {vec3} delta - Movement delta
    */
   translateTarget(delta: vec3): void {
-    vec3.add(this.target, this.target, delta);
+    vec3.add(this._target, this._target, delta);
+    this.markViewMatrixDirty();
   }
 
   /**
@@ -192,7 +373,7 @@ export class Camera extends Entity {
    */
   orbit(azimuth: number, elevation: number, worldUp: vec3 = vec3.fromValues(0, 1, 0)): void {
     const offset = vec3.create();
-    vec3.subtract(offset, this.position, this.target);
+    vec3.subtract(offset, this.position, this._target);
     
     // Convert to spherical coordinates
     const radius = vec3.length(offset);
@@ -213,7 +394,8 @@ export class Camera extends Entity {
     offset[2] = sinPhiRadius * Math.cos(theta);
     
     // Update position
-    vec3.add(this.position, this.target, offset);
+    vec3.add(this.position, this._target, offset);
+    this.markDirty();
   }
 
   /**
@@ -269,7 +451,8 @@ export class Camera extends Entity {
       -Math.sin(pitch) * distance,
       Math.cos(yaw) * cosPitch * distance
     );
-    vec3.add(this.position, this.target, offset);
+    vec3.add(this.position, this._target, offset);
+    this.markDirty();
   }
 
   /**
@@ -279,12 +462,7 @@ export class Camera extends Entity {
    * @returns {Object} Object with origin and direction vectors
    */
   getScreenRay(x: number, y: number): { origin: vec3; direction: vec3 } {
-    const projMatrix = this.getProjectionMatrix();
-    const viewMatrix = this.getViewMatrix();
-    
-    // Combine matrices
-    const vpMatrix = mat4.create();
-    mat4.multiply(vpMatrix, projMatrix, viewMatrix);
+    const vpMatrix = this.getViewProjectionMatrix();
     
     // Invert the view-projection matrix
     const invVpMatrix = mat4.create();
@@ -338,7 +516,8 @@ export class Camera extends Entity {
     );
     
     // Update target position based on new forward direction
-    vec3.scaleAndAdd(this.target, this.position, newForward, distance);
+    vec3.scaleAndAdd(this._target, this.position, newForward, distance);
+    this.markViewMatrixDirty();
   }
 
   /**
@@ -373,18 +552,28 @@ export class Camera extends Entity {
     vec3.scale(delta, up, distance);
     this.translate(delta);
   }
+  
+  /**
+   * Force recalculation of all matrices
+   */
+  public forceMatrixUpdate(): void {
+    this.forceDirty();
+    this._viewMatrixDirty = true;
+    this._projectionMatrixDirty = true;
+    this._viewProjectionMatrixDirty = true;
+  }
 
   /**
    * Create a copy of this camera
    * @returns {Camera} A new camera with the same properties
    */
   clone(): Camera {
-    const newCamera = new Camera(this.gl!, this.fieldOfView, this.near, this.far);
+    const newCamera = new Camera(this.gl!, this._fieldOfView, this._near, this._far);
     vec3.copy(newCamera.position, this.position);
-    vec3.copy(newCamera.target, this.target);
+    vec3.copy(newCamera._target, this._target);
     vec3.copy(newCamera.rotation, this.rotation);
     vec3.copy(newCamera.scale, this.scale);
-    newCamera.aspect = this.aspect;
+    newCamera._aspect = this._aspect;
     newCamera.name = this.name + "_clone";
     return newCamera;
   }
@@ -396,15 +585,21 @@ export class Camera extends Entity {
     console.log("Camera Debug Info:");
     console.log("Name:", this.name);
     console.log("Position:", this.position);
-    console.log("Target:", this.target);
+    console.log("Target:", this._target);
     console.log("Distance to Target:", this.getDistanceToTarget());
     console.log("Forward Vector:", this.getForwardVector());
     console.log("Right Vector:", this.getRightVector());
     console.log("Up Vector:", this.getUpVector());
     console.log("Rotation:", this.rotation);
     console.log("Scale:", this.scale);
-    console.log(`FOV: ${this.fieldOfView}, Aspect: ${this.aspect}, Near: ${this.near}, Far: ${this.far}`);
+    console.log(`FOV: ${this._fieldOfView}, Aspect: ${this._aspect}, Near: ${this._near}, Far: ${this._far}`);
     const angles = this.getViewAngles();
     console.log(`View Angles - Yaw: ${angles.yaw * 180/Math.PI}°, Pitch: ${angles.pitch * 180/Math.PI}°`);
+    console.log("Matrix States:");
+    console.log(`  Model Matrix Dirty: ${this.isDirty()}`);
+    console.log(`  View Matrix Dirty: ${this._viewMatrixDirty}`);
+    console.log(`  Projection Matrix Dirty: ${this._projectionMatrixDirty}`);
+    console.log(`  View-Projection Matrix Dirty: ${this._viewProjectionMatrixDirty}`);
+    console.log(`  Is Static: ${this.isStatic()}`);
   }  
 }

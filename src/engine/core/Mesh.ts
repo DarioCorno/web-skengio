@@ -13,7 +13,7 @@ export interface MeshOptions {
 }
 
 export class Mesh extends Entity {
-  private isDirty: boolean = true;
+  private _isDirty: boolean = true;
 
   // Vertex data
   private positions: Float32Array;
@@ -71,21 +71,21 @@ export class Mesh extends Entity {
    * Marks the mesh as needing updates
    */
   setDirty(): void {
-    this.isDirty = true;
+    this._isDirty = true;
   }
 
   /**
    * Marks the mesh as up to date
    */
   clearDirty(): void {
-    this.isDirty = false;
+    this._isDirty = false;
   }
 
   /**
    * Returns whether the mesh needs updates
    */
-  getDirty(): boolean {
-    return this.isDirty;
+  isDirty(): boolean {
+    return this._isDirty;
   }
 
   /**
@@ -268,7 +268,7 @@ export class Mesh extends Entity {
    * Upload updated vertex data to GPU buffers
    */
   uploadVertexData(): void {
-    if (!this.gl || !this.isDirty) return;
+    if (!this.gl || !this._isDirty) return;
 
     const gl = this.gl;
 

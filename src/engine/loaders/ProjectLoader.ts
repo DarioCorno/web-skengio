@@ -1,7 +1,6 @@
 // src/engine/ProjectManager.ts
 import * as ENGINE from '../ENGINE'; // Import your engine classes
 import { vec3, vec4 } from 'gl-matrix';
-import { Entity } from './Entity'
 import { PerformancesDebugger } from '../Utils';
 
 interface SceneData {
@@ -21,6 +20,7 @@ interface SceneData {
         name: string,
         position: number[];
         color: number[];
+        intensity?: number;
         debug?: boolean;
     }[];
     meshes: {   
@@ -29,6 +29,7 @@ interface SceneData {
         position: number[];
         rotation: number[];
         scale: number[];
+        isStatic?: boolean; // Optional flag to mark mesh as static (never moves)
         material: {
             name: string,
             type: string; // "texture", "color", etc.
@@ -115,8 +116,9 @@ export class ProjectManager {
             }
             
         } catch(error) {
-            console.log("Errro loading Project:", error)
-            throw new Error("Cannot load project");
+            console.log("Error loading Project:", error)
+            console.trace();
+            throw new Error("Cannot load project");            
         }
     }
 
@@ -160,7 +162,7 @@ export class ProjectManager {
     }
 
     private async createScene(sceneData: SceneData): Promise<ENGINE.Scene> {
-        if(!this.gl) throw new Error('Cannot crate scene. GL Missing');
+        if(!this.gl) throw new Error('Cannot create scene. GL Missing');
 
         const cameraData = sceneData.camera;
         const camera = new ENGINE.Camera(
@@ -183,7 +185,8 @@ export class ProjectManager {
             const light = new ENGINE.Light(
                 this.gl,
                 vec3.fromValues(lightData.position[0], lightData.position[1], lightData.position[2]),
-                vec3.fromValues(lightData.color[0], lightData.color[1], lightData.color[2])
+                vec3.fromValues(lightData.color[0], lightData.color[1], lightData.color[2]),
+                lightData.intensity ?? 1
             );
             light.name = lightData.name ?? "Light" + performance.now().toString();
             scene.addLight(light);
@@ -194,6 +197,7 @@ export class ProjectManager {
 
         for (const meshData of sceneData.meshes) {
             let meshOptions;
+            const isStatic = meshData.isStatic ?? false; // Check if mesh is marked as static
 
             switch (meshData.geometry) {
                 case 'cube':
@@ -244,9 +248,15 @@ export class ProjectManager {
             const mesh = new ENGINE.Mesh(this.gl, meshOptions);
             mesh.name = meshData.name ?? "Mesh" + performance.now().toString();
 
-            mesh.position = vec3.fromValues(meshData.position[0], meshData.position[1], meshData.position[2]);
-            mesh.rotation = vec3.fromValues(meshData.rotation[0], meshData.rotation[1], meshData.rotation[2]);
-            mesh.scale = vec3.fromValues(meshData.scale[0], meshData.scale[1], meshData.scale[2]);
+            mesh.setPosition(vec3.fromValues( meshData.position[0], meshData.position[1], meshData.position[2] ));
+            mesh.setRotation(vec3.fromValues( meshData.rotation[0], meshData.rotation[1], meshData.rotation[2] ));
+            mesh.setScale( vec3.fromValues( meshData.scale[0], meshData.scale[1], meshData.scale[2] ));
+            
+            // Mark as static if specified in the project data
+            if (isStatic) {
+                mesh.setStatic(true);
+            }
+            
             mesh.init();
             scene.addMesh(mesh);
 

@@ -4,10 +4,11 @@ import vertexShaderSource from '../../shaders/deferredVertexShader.glsl?raw';
 import fragmentShaderSource from '../../shaders/deferredFragmentShader.glsl?raw';
 import * as ENGINE from '../../ENGINE';
 import { UniformLocationCache } from '../../utils/UniformLocationCache';
+import { mat4, vec3 } from 'gl-matrix';
 
 /**
  * LightingPass performs deferred lighting calculations using G-buffer data
- * Combines geometry information with lights to produce the final shaded image
+ * Optimized with dirty tracking to minimize uniform uploads
  */
 export class LightingPass extends Pass {
     private program: WebGLProgram | null = null;
@@ -26,6 +27,21 @@ export class LightingPass extends Pass {
     
     // Debug mode: 0 = final render, 1 = position, 2 = albedo, 3 = normal, 4 = objectData, 5 = alpha, 6 = depth
     public debugMode: number = 0;
+    
+    // Optimization: Track view matrix changes
+    private lastViewMatrix: mat4 = mat4.create();
+    private viewMatrixDirty: boolean = true;
+    
+    // Optimization: Track camera position changes
+    private lastCameraPosition: vec3 = vec3.create();
+    private cameraPositionDirty: boolean = true;
+    
+    // Statistics tracking
+    private stats = {
+        totalUniformUploads: 0,
+        skippedUniformUploads: 0,
+        frameCount: 0
+    };
     
     /**
      * Creates a new LightingPass instance
@@ -173,6 +189,85 @@ export class LightingPass extends Pass {
     }
     
     /**
+     * Check if view matrix has changed
+     * @param {mat4} currentViewMatrix - Current view matrix
+     * @returns {boolean} True if view matrix changed
+     */
+    private checkViewMatrixChanged(currentViewMatrix: mat4): boolean {
+        if (!mat4.exactEquals(this.lastViewMatrix, currentViewMatrix)) {
+            mat4.copy(this.lastViewMatrix, currentViewMatrix);
+            this.viewMatrixDirty = true;
+            return true;
+        }
+        this.viewMatrixDirty = false;
+        return false;
+    }
+    
+    /**
+     * Check if camera position has changed
+     * @param {vec3} currentPosition - Current camera position
+     * @returns {boolean} True if position changed
+     */
+    private checkCameraPositionChanged(currentPosition: vec3): boolean {
+        if (!vec3.exactEquals(this.lastCameraPosition, currentPosition)) {
+            vec3.copy(this.lastCameraPosition, currentPosition);
+            this.cameraPositionDirty = true;
+            return true;
+        }
+        this.cameraPositionDirty = false;
+        return false;
+    }
+    
+    /**
+     * Update light uniforms only when dirty
+     * @param {ENGINE.Light[]} lights - Array of lights
+     * @param {mat4} viewMatrix - Current view matrix
+     */
+    private updateLightUniforms(lights: ENGINE.Light[], viewMatrix: mat4): void {
+        const gl = this.gl;
+        
+        for (let i = 0; i < lights.length && i < this.lightUniformLocations.length; i++) {
+            const light = lights[i];
+            const locations = this.lightUniformLocations[i];
+            
+            // Track if position needs update (either light moved or view changed)
+            const positionNeedsUpdate = light.isPositionDirty() || this.viewMatrixDirty;
+            
+            // Update position only if needed
+
+            // Update position only if needed
+            if (locations.uLightPosition && positionNeedsUpdate) {
+                // Send world-space position (shader will transform to view space)
+                gl.uniform3fv(locations.uLightPosition, light.position);
+                this.stats.totalUniformUploads++;
+            } else {
+                this.stats.skippedUniformUploads++;
+            }
+            
+            // Update color only if dirty
+            if (locations.uLightColor && light.isColorDirty()) {
+                gl.uniform3fv(locations.uLightColor, light.color);
+                this.stats.totalUniformUploads++;
+            } else {
+                this.stats.skippedUniformUploads++;
+            }
+            
+            // Update intensity only if dirty
+            if (locations.uLightIntensity && light.isIntensityDirty()) {
+                gl.uniform1f(locations.uLightIntensity, light.intensity);
+                this.stats.totalUniformUploads++;
+            } else {
+                this.stats.skippedUniformUploads++;
+            }
+        }
+        
+        // Clear dirty flags after updating
+        for (let i = 0; i < lights.length; i++) {
+            lights[i].clearAllDirty();
+        }
+    }
+    
+    /**
      * Execute the lighting pass
      * @param {ENGINE.Scene} scene - The scene with lights and camera
      * @param {Object} inputTextures - G-buffer textures from previous pass
@@ -185,9 +280,20 @@ export class LightingPass extends Pass {
         
         const gl = this.gl;
         const lights = scene.getLights();
+        const camera = scene.getCamera();
+        
+        // Track frame for statistics
+        this.stats.frameCount++;
         
         // Cache light uniforms if needed
         this.cacheLightUniforms(lights);
+        
+        // Check for view matrix changes
+        const viewMatrix = camera.getViewMatrix();
+        this.checkViewMatrixChanged(viewMatrix);
+        
+        // Check for camera position changes
+        this.checkCameraPositionChanged(camera.position);
         
         // Configure stencil test to only render where geometry exists
         gl.enable(gl.STENCIL_TEST);
@@ -222,43 +328,35 @@ export class LightingPass extends Pass {
             }
         }
         
-        // Set camera uniforms
-        const camera = scene.getCamera();
-        const viewMatrix = camera.getViewMatrix();
-        
+        // Update camera uniforms only if changed
         const nearPlaneLocation = this.uniformCache.getUniformLocation(this.program, 'uNearPlane');
-        if (nearPlaneLocation) gl.uniform1f(nearPlaneLocation, camera.near);
+        if (nearPlaneLocation && camera.isProjectionMatrixDirty()) {
+            gl.uniform1f(nearPlaneLocation, camera.near);
+        }
         
         const farPlaneLocation = this.uniformCache.getUniformLocation(this.program, 'uFarPlane');
-        if (farPlaneLocation) gl.uniform1f(farPlaneLocation, camera.far);
+        if (farPlaneLocation && camera.isProjectionMatrixDirty()) {
+            gl.uniform1f(farPlaneLocation, camera.far);
+        }
         
         const viewMatrixLocation = this.uniformCache.getUniformLocation(this.program, 'uViewMatrix');
-        if (viewMatrixLocation) gl.uniformMatrix4fv(viewMatrixLocation, false, viewMatrix);
+        if (viewMatrixLocation && this.viewMatrixDirty) {
+            gl.uniformMatrix4fv(viewMatrixLocation, false, viewMatrix);
+        }
         
         const cameraPosLocation = this.uniformCache.getUniformLocation(this.program, 'uCameraPosition');
-        if (cameraPosLocation) gl.uniform3fv(cameraPosLocation, camera.position);
+        if (cameraPosLocation && this.cameraPositionDirty) {
+            gl.uniform3fv(cameraPosLocation, camera.position);
+        }
         
-        // Set light count
+        // Set light count (always update as it's cheap)
         const numLightsLocation = this.uniformCache.getUniformLocation(this.program, 'uNumLights');
         if (numLightsLocation) {
             gl.uniform1i(numLightsLocation, lights.length);
         }
         
-        // Set light uniforms
-        for (let i = 0; i < lights.length && i < this.lightUniformLocations.length; i++) {
-            const light = lights[i];
-            const locations = this.lightUniformLocations[i];
-            
-            if (locations.uLightPosition) {
-                gl.uniform3fv(locations.uLightPosition, light.position);
-            }
-            if (locations.uLightColor) {
-                gl.uniform3fv(locations.uLightColor, light.color);
-            }
-            if (locations.uLightIntensity) {
-                gl.uniform1f(locations.uLightIntensity, light.intensity);
-            }
-        }
+        // Update light uniforms with dirty tracking
+        this.updateLightUniforms(lights, viewMatrix);
         
         // Set debug mode
         const debugModeLocation = this.uniformCache.getUniformLocation(this.program, 'uDebugMode');
@@ -281,6 +379,34 @@ export class LightingPass extends Pass {
         gl.enable(gl.DEPTH_TEST);
         gl.depthMask(true);
         gl.disable(gl.STENCIL_TEST);
+        
+        // Log statistics periodically
+        if (this.stats.frameCount % 300 === 0) {
+            const uploadRate = (this.stats.totalUniformUploads / 
+                               (this.stats.totalUniformUploads + this.stats.skippedUniformUploads)) * 100;
+            console.log(`LightingPass Optimization Stats (last 300 frames):`);
+            console.log(`  Uniform uploads: ${this.stats.totalUniformUploads}`);
+            console.log(`  Skipped uploads: ${this.stats.skippedUniformUploads}`);
+            console.log(`  Upload rate: ${uploadRate.toFixed(1)}%`);
+            console.log(`  Savings: ${(100 - uploadRate).toFixed(1)}% fewer uploads`);
+            
+            // Reset stats
+            this.stats.totalUniformUploads = 0;
+            this.stats.skippedUniformUploads = 0;
+        }
+    }
+    
+    /**
+     * Force all lights to be marked as dirty
+     * Useful when switching scenes or after major changes
+     */
+    public forceAllLightsDirty(scene: ENGINE.Scene): void {
+        const lights = scene.getLights();
+        for (const light of lights) {
+            light.forceAllDirty();
+        }
+        this.viewMatrixDirty = true;
+        this.cameraPositionDirty = true;
     }
     
     /**
@@ -292,6 +418,8 @@ export class LightingPass extends Pass {
         this.width = width;
         this.height = height;
         // Lighting pass doesn't have its own buffers to resize
+        // but we should mark view matrix as dirty on resize
+        this.viewMatrixDirty = true;
     }
     
     /**
@@ -316,6 +444,29 @@ export class LightingPass extends Pass {
     }
     
     /**
+     * Get optimization statistics
+     * @returns {Object} Current optimization stats
+     */
+    getOptimizationStats(): {
+        frameCount: number;
+        totalUniformUploads: number;
+        skippedUniformUploads: number;
+        uploadRate: number;
+        savingsPercentage: number;
+    } {
+        const total = this.stats.totalUniformUploads + this.stats.skippedUniformUploads;
+        const uploadRate = total > 0 ? (this.stats.totalUniformUploads / total) * 100 : 0;
+        
+        return {
+            frameCount: this.stats.frameCount,
+            totalUniformUploads: this.stats.totalUniformUploads,
+            skippedUniformUploads: this.stats.skippedUniformUploads,
+            uploadRate: uploadRate,
+            savingsPercentage: 100 - uploadRate
+        };
+    }
+    
+    /**
      * Debug information
      */
     debugInfo(): void {
@@ -324,6 +475,9 @@ export class LightingPass extends Pass {
         console.log('Has VAO:', !!this.vao);
         console.log('Has program:', !!this.program);
         console.log('Cached light count:', this.lastLightCount);
+        console.log('View matrix dirty:', this.viewMatrixDirty);
+        console.log('Camera position dirty:', this.cameraPositionDirty);
+        console.log('Optimization stats:', this.getOptimizationStats());
         console.log(`--- End ${this.name} Debug Info ---`);
     }
 }
