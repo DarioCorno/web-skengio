@@ -10,6 +10,8 @@ async function main() {
   const wm = demo.getWM();
 
   const renderer = wm?.renderer as ENGINE.DeferredRenderer;
+  //renderer.setDebugMode(2);
+
   const inputManager = wm?.getInputManager();
 
   let cameraController: ENGINE.OrbitCameraController | null = null;

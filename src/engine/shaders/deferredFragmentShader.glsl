@@ -1,130 +1,138 @@
 #version 300 es
-precision mediump float;
+precision highp float;
 
 in vec2 vUV;
 
+// G-Buffer textures
 uniform sampler2D uPosition;
 uniform sampler2D uAlbedo;
 uniform sampler2D uNormal;
 uniform sampler2D uObjectData;
 
-// ############## Lights section ################
+// Lights
 #define MAX_LIGHTS 16
-
 struct Light {
-    vec3 uLightPosition;
-    vec3 uLightColor;
-    mat4 uModelViewMatrix;
-    float uLightIntensity;
+    vec3 position;
+    vec3 color;
+    float intensity;
 };
-
-uniform Light uLights [MAX_LIGHTS];
+uniform Light uLights[MAX_LIGHTS];
 uniform int uNumLights;
 
+// Camera uniforms
+uniform mat4 uViewMatrix;
+uniform float uNearPlane;
+uniform float uFarPlane;
+uniform vec3 uCameraPosition;
+
+// Debug mode
 uniform int uDebugMode;
 
-// ##################### CAMERA UNIFORMS ###################
-uniform mat4 uViewMatrix;
-uniform float uNearPlane; // Near plane distance
-uniform float uFarPlane;
-uniform vec3 uCameraPosition;      // Needed to compute view direction
-
+// Output
 out vec4 fragColor;
 
-vec3 getObjectColor(float id) {
-    // Simple hash function to generate pseudo-random values
-    uint h = uint(id);
-    h = (h ^ 61u) ^ (h >> 16u);
-    h *= 9u;
-    h = h ^ (h >> 4u);
-    h *= 0x27d4eb2du;
-    h = h ^ (h >> 15u);
-
-    // Map the hash to RGB color components, making them brighter
-    float r = float((h >> 16u) & 255u) / 255.0;
-    float g = float((h >> 8u) & 255u) / 255.0;
-    float b = float(h & 255u) / 255.0;
-
-    // Adjust brightness by scaling and clamping
-    vec3 color = vec3(r, g, b);
-    color = color * 1.5; // Increase brightness (adjust the multiplier)
-    color = clamp(color, 0.0, 1.0); // Clamp to prevent overflow
-
-    return color;
-}
-
 void main() {
-
-    if ( uDebugMode == 1) {
-        //debug positions
-        fragColor = abs(texture(uPosition, vUV));
-    } else if ( uDebugMode == 2) {
-        //debug albedo
-        fragColor = texture(uAlbedo, vUV);
-    } else if ( uDebugMode == 3) {
-        //debug normals (absolute)
-        fragColor = abs(texture(uNormal, vUV));
-    } else if ( uDebugMode == 4) {
-        //debug objectData
-        float objId = texture(uObjectData, vUV).r;
-        float alpha = texture(uAlbedo, vUV).a;
-        fragColor = vec4(getObjectColor(objId), alpha);
-    } else if ( uDebugMode == 5) {
-        //debug alpha
-        vec4 alb = texture(uAlbedo, vUV);
-        fragColor = vec4(alb.a, alb.a, alb.a, 1.0);
-    } else if ( uDebugMode == 6) {
-        //debug depth
-        vec4 pos = texture(uPosition, vUV);
-        float linearDepth = -pos.z;
-        float normalizedDepth = (linearDepth - uNearPlane) / (uFarPlane - uNearPlane);
-        normalizedDepth = clamp(normalizedDepth, 0.0, 1.0);
-        fragColor = vec4(normalizedDepth, normalizedDepth, normalizedDepth, 1.0);
-    } else {
-        // Sample the G-buffer texture and display its contents
-        vec3 position = texture(uPosition, vUV).xyz;
-        vec4 albedo = texture(uAlbedo, vUV);
-        vec3 normal = texture(uNormal, vUV).xyz;
-        vec3 ambient = albedo.rgb * vec3(0.2, 0.2, 0.2);
+    // Sample G-buffer
+    vec4 positionData = texture(uPosition, vUV);
+    vec4 albedoData = texture(uAlbedo, vUV);
+    vec4 normalData = texture(uNormal, vUV);
+    vec4 objectData = texture(uObjectData, vUV);
     
-        // Compute the direction to the light source
-        vec3 fragPos = position;
-        vec3 norm = normalize(normal);
-
-        vec4 objData = texture(uObjectData, vUV);
-        float objId = objData.r;
-        float matShininess = objData.g;
-        vec3 color = vec3(0.0);
-
-        //if objeId is negative, it's a debug mesh
-        if(objId >= 0.0) {
-            
-            vec3 viewDir = normalize(uCameraPosition - fragPos);
-
-            for(int i = 0; i < uNumLights; i++) {
-                //vec3 lightPos = (uLights[i].uModelViewMatrix * vec4(uLights[i].uLightPosition, 1.0)).xyz;
-                vec3 lightPos = (uViewMatrix * vec4(uLights[i].uLightPosition, 1.0)).xyz;
-                vec3 lightDir = normalize(lightPos - fragPos);
-                // Diffuse lighting angle
-                float diffAngle = max(dot(norm,lightDir), 0.0);
-
-                vec3 diffuseColor = uLights[i].uLightColor.rgb * albedo.rgb * diffAngle * uLights[i].uLightIntensity; // Use light intensity
-
-                // Specular term using Blinn-Phong:
-                vec3 halfwayDir = normalize(lightDir + viewDir);
-                float spec = pow(max(dot(norm, halfwayDir), 0.0), matShininess);   //default global shininess, will use material shininess
-
-                color += (diffuseColor * spec);
-            }
-
-            color += ambient;
-        } else {
-            //debug mesh, render it white without lighting for now
-            color = albedo.rgb;
-        }
-        fragColor = vec4(color.r, color.g, color.b, albedo.a); 
-
+    // Early exit for empty pixels
+    if (albedoData.a < 0.01) {
+        discard;
     }
-
-
+    
+    // Unpack G-buffer data
+    vec3 fragPos = positionData.xyz; // Position in view space
+    vec3 albedo = albedoData.rgb;
+    float alpha = albedoData.a;
+    vec3 normal = normalize(normalData.xyz);
+    float emissiveIntensity = normalData.w; // Emissive intensity stored in normal.w
+    
+    float objectId = objectData.r;
+    float shininess = objectData.g;
+    float materialFlags = objectData.b; // 1.0 = unlit/emissive
+    
+    // Debug modes
+    if (uDebugMode == 1) {
+        // Position
+        fragColor = vec4(abs(fragPos), 1.0);
+        return;
+    } else if (uDebugMode == 2) {
+        // Albedo
+        fragColor = vec4(albedo, alpha);
+        return;
+    } else if (uDebugMode == 3) {
+        // Normal
+        fragColor = vec4(normal * 0.5 + 0.5, 1.0);
+        return;
+    } else if (uDebugMode == 4) {
+        // Object ID
+        float id = objectId / 10.0;
+        fragColor = vec4(fract(id), fract(id * 7.0), fract(id * 13.0), 1.0);
+        return;
+    } else if (uDebugMode == 5) {
+        // Emissive intensity
+        fragColor = vec4(vec3(emissiveIntensity), 1.0);
+        return;
+    } else if (uDebugMode == 6) {
+        // Material flags (unlit = white, lit = black)
+        fragColor = vec4(vec3(materialFlags), 1.0);
+        return;
+    }
+    
+    // Check if material is unlit/emissive
+    if (materialFlags > 0.5) {
+        // For emissive/unlit materials, output the albedo directly
+        // The albedo already contains emissive color * intensity from G-buffer
+        fragColor = vec4(albedo, alpha);
+        return;
+    }
+    
+    // For lit materials, perform lighting calculations
+    vec3 viewDir = normalize(-fragPos);
+    
+    // Ambient lighting
+    vec3 ambient = vec3(0.1) * albedo;
+    vec3 color = ambient;
+    
+    // Accumulate lighting from all lights
+    for (int i = 0; i < uNumLights && i < MAX_LIGHTS; i++) {
+        // Transform light position to view space
+        vec3 lightPosWorld = uLights[i].position;
+        vec3 lightPosView = (uViewMatrix * vec4(lightPosWorld, 1.0)).xyz;
+        
+        // Calculate light direction
+        vec3 lightDir = normalize(lightPosView - fragPos);
+        
+        // Distance attenuation
+        float distance = length(lightPosView - fragPos);
+        float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * distance * distance);
+        
+        // Diffuse lighting
+        float diff = max(dot(normal, lightDir), 0.0);
+        vec3 diffuse = diff * albedo * uLights[i].color;
+        
+        // Specular lighting (Blinn-Phong)
+        vec3 halfwayDir = normalize(lightDir + viewDir);
+        float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
+        vec3 specular = spec * uLights[i].color;
+        
+        // Add this light's contribution
+        color += (diffuse + specular) * uLights[i].intensity * attenuation;
+    }
+    
+    // Add emissive contribution for materials that have some emissive but aren't fully unlit
+    if (emissiveIntensity > 0.0 && materialFlags < 0.5) {
+        color += albedo * emissiveIntensity;
+    }
+    
+    // Simple tone mapping
+    color = color / (color + vec3(1.0));
+    
+    // Gamma correction
+    color = pow(color, vec3(1.0/0.8));
+    
+    fragColor = vec4(color, alpha);
 }

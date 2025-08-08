@@ -195,6 +195,12 @@ export class GBufferPass extends Pass {
         
         const gl = this.gl;
         
+        // IMPORTANT: Unbind all textures first to avoid feedback loop
+        for (let i = 0; i < 8; i++) {
+            gl.activeTexture(gl.TEXTURE0 + i);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+        }
+        
         // Bind G-buffer framebuffer
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
         gl.viewport(0, 0, this.width, this.height);
@@ -213,7 +219,7 @@ export class GBufferPass extends Pass {
         gl.enable(gl.CULL_FACE);
         gl.cullFace(gl.BACK);
         
-        // depth buffer already filled
+        // depth buffer already filled by depth prepass
         // clear only color and stencil, preserve depth
         gl.clearStencil(0);
         gl.clearColor(0, 0, 0, 0);
@@ -272,7 +278,7 @@ export class GBufferPass extends Pass {
                 gl.uniform4fv(objDataLocation, [objectId, 0.0, 0.0, 0.0]);
             }
             
-            // Apply material
+            // Apply material - this will bind textures to TEXTURE0
             if (mesh.material) {
                 mesh.material.useMaterial(gl, this.program);
             }
@@ -287,7 +293,15 @@ export class GBufferPass extends Pass {
         // Restore render state
         gl.depthFunc(gl.LESS);
         gl.depthMask(true);
+        
+        // IMPORTANT: Unbind framebuffer AND textures before returning
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        
+        // Unbind any bound textures to prevent feedback loop in next pass
+        for (let i = 0; i < 8; i++) {
+            gl.activeTexture(gl.TEXTURE0 + i);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+        }
         
         return this.textures;
     }

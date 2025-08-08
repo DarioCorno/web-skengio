@@ -1,85 +1,98 @@
 {
-    "canvasSelector" : "my-canvas",
-    "measureGPUPerformances" : false,
-    "configs" : {
-        "enableGUI" : true,
-        "showDebug" : false,
-        "useBitmapFontAtlas" : true,
-        "debugMode" : 0,
-        "enableInput" : true
+    "canvasSelector": "my-canvas",
+    "measureGPUPerformances": false,
+    "configs": {
+        "enableGUI": true,
+        "showDebug": false,
+        "useBitmapFontAtlas": true,
+        "debugMode": 0,
+        "enableInput": true
     },
     "scenes": [
         {
             "name": "Scene 1",
             "startTimecode": 0,
-            "endTimecode": 6000, 
+            "endTimecode": 6000,
             "camera": {
-                "name" : "Camera01",
+                "name": "Camera01",
                 "fov": 45,
                 "aspect": 0,
                 "near": 0.1,
                 "far": 50,
                 "position": [6.0, 6.0, 6.0],
-                "target" : [0.0 ,0.0 ,0.0]
+                "target": [0.0, 0.0, 0.0]
             },
             "lights": [
-                { 
-                    "name" : "Light01",
-                    "position": [10, 0, 0], 
+                {
+                    "name": "Light01",
+                    "position": [10, 0, 0],
                     "color": [1.0, 1.0, 1.0],
-                    "intensity" : 2,
-                    "debug" : true
+                    "intensity": 2,
+                    "debug": true
                 },
-                { 
-                    "name" : "Light02",
-                    "position": [-10, 0, 0], 
+                {
+                    "name": "Light02",
+                    "position": [-10, 0, 0],
                     "color": [1.0, 0.0, 0.0],
-                    "intensity" : 1,
-                    "debug" : true
+                    "intensity": 1,
+                    "debug": true
                 }
             ],
             "meshes": [
                 {
-                    "name" : "Sphere01",
+                    "name": "Sphere01",
                     "geometry": "sphere",
                     "position": [0, 0, 0],
                     "rotation": [0, 90, 0],
                     "scale": [1, 1, 1],
                     "material": {
-                        "name" : "SphereMaterial",
-                        "type": "texture",
-                        "shininess" : 3.0
+                        "name": "BrickWallPBR",
+                        "type": "pbr",
+                        "baseColor": [1.0, 1.0, 1.0, 1.0],
+                        "metallic": 0.0,
+                        "roughness": 0.7,
+                        "normalScale": 1.5,
+                        "occlusionStrength": 1.0,
+                        "emissive": [0.0, 0.0, 0.0],
+                        "emissiveIntensity": 0.4
                     },
                     "texturePaths": {
-                        "diffuse": "/img/uv_ref.png"
+                        "diffuse": "/img/bricks_diffuse.jpg",
+                        "normal" : "/img/bricks_normal.jpg"
                     },
-                    "data" : {
-                        "radius" : 1.0,
-                        "wSegments" : 12,
-                        "hSegments" : 12
+                    "data": {
+                        "radius": 1.0,
+                        "wSegments": 12,
+                        "hSegments": 12
                     }
                 },
                 {
-                    "name" : "Torus01",
+                    "name": "Torus01",
                     "geometry": "torus",
                     "position": [-1.8, 0, 0],
                     "rotation": [0, 0, 0],
                     "scale": [1, 1, 1],
                     "material": {
-                        "name" : "TorusMaterial",
-                        "type": "texture",
-                        "shininess" : 25.0
+                        "name": "Checker",
+                        "type": "pbr",
+                        "baseColor": [1.0, 1.0, 1.0, 1.0],
+                        "metallic": 1.0,
+                        "roughness": 0.2,
+                        "normalScale": 0.0,
+                        "occlusionStrength": 1.0,
+                        "emissive": [0.0, 0.0, 0.0],
+                        "emissiveIntensity": 0.0
                     },
                     "texturePaths": {
                         "diffuse": "/img/checker_plain.png"
                     },
-                    "data" : { 
-                        "radius":3.0,
-                        "tubeRadius":0.6,
-                        "radialSegments":32,
-                        "tubularSegments":16
+                    "data": {
+                        "radius": 3.0,
+                        "tubeRadius": 0.6,
+                        "radialSegments": 32,
+                        "tubularSegments": 16
                     }
-                }                
+                }
             ]
         }
     ]

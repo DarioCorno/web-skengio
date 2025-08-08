@@ -258,11 +258,17 @@ export class Entity {
                 const sData = ENGINE.Utils.GeometryGenerator.generateSphere(0.1, 8, 8);
                 this.debugMesh = new ENGINE.Mesh(gl, sData);
                 const light : ENGINE.Light = this as ENGINE.Light;
-                const color = vec4.fromValues(light.color[0], light.color[1], light.color[2], 1.0)
-                this.debugMesh.material = new MaterialColor( color );
-                this.debugMesh.material.name = 'LightDebugMaterial';
-                this.debugMesh.material.shininess = 0.0;
-                this.debugMesh.setPosition(light.position[0], light.position[1], light.position[2]);
+                
+                // Create emissive material with the light's color
+                this.debugMesh.material = ENGINE.Materials.Material.createEmissiveMaterial(
+                    light.color[0],
+                    light.color[1], 
+                    light.color[2],
+                    light.intensity
+                );
+                this.debugMesh.material.name = 'LightDebugMaterial_' + this.name;
+                
+                this.debugMesh.setPosition(light.position);
                 this.debugMesh.setStatic(this._isStatic);
                 this.debugMesh.type = Entity.EntityTypes.LightDebug;
                 this.debugMesh.init();
