@@ -2,11 +2,13 @@
 import * as ENGINE from '../ENGINE';
 import { vec3 } from 'gl-matrix';
 import { PerformancesDebugger } from '../utils/PerformancesDebugger';
+import { MaterialManager } from '../materials/MaterialManager';
 
 /**
  * Material definition in project JSON
  */
 interface MaterialData {
+    id?: string;                // Unique identifier for global materials
     name: string;
     type: 'pbr' | 'unlit' | 'emissive' | 'simple' | 'texture' | 'color';
     
@@ -35,6 +37,37 @@ interface MaterialData {
     // Render state
     doubleSided?: boolean;          // Disable backface culling
     unlit?: boolean;                // Skip lighting calculations
+    
+    // Textures
+    textures?: {
+        diffuse?: string;
+        normal?: string;
+        metallicRoughness?: string;
+        emissive?: string;
+        occlusion?: string;
+    };
+}
+
+/**
+ * Mesh definition in project JSON
+ */
+interface MeshData {
+    name: string;
+    geometry: string;
+    position: number[];
+    rotation: number[];
+    scale: number[];
+    isStatic?: boolean;
+    materialId?: string;        // Reference to material ID
+    material?: MaterialData;    // Inline material definition (backward compatibility)
+    texturePaths?: {            // Legacy texture paths (backward compatibility)
+        diffuse?: string;
+        normal?: string;
+        metallicRoughness?: string;
+        emissive?: string;
+        occlusion?: string;
+    };
+    data?: any;
 }
 
 /**
@@ -60,23 +93,7 @@ interface SceneData {
         intensity?: number;
         debug?: boolean;
     }[];
-    meshes: {
-        name: string;
-        geometry: string;
-        position: number[];
-        rotation: number[];
-        scale: number[];
-        isStatic?: boolean;
-        material: MaterialData;
-        texturePaths?: {
-            diffuse?: string;
-            normal?: string;
-            metallicRoughness?: string;
-            emissive?: string;
-            occlusion?: string;
-        };
-        data?: any; // Geometry-specific data
-    }[];
+    meshes: MeshData[];
 }
 
 /**
@@ -84,6 +101,7 @@ interface SceneData {
  */
 interface ProjectData {
     scenes: SceneData[];
+    materials?: MaterialData[];  // Global materials definition
     transitionDuration?: number;
     canvasSelector: string;
     singleSceneProject?: boolean;
@@ -103,7 +121,14 @@ interface ProjectConfigs {
 }
 
 /**
+ * Callback function types for animation loop
+ */
+export type InitCallback = (manager: ProjectManager) => void;
+export type UpdateCallback = (manager: ProjectManager, deltaTime: number, time: number) => void;
+
+/**
  * ProjectManager handles loading and managing scenes from JSON configuration
+ * Now includes MaterialManager integration
  */
 export class ProjectManager {
     private wm: ENGINE.WindowManager | null = null;
@@ -111,6 +136,7 @@ export class ProjectManager {
     private sceneData: SceneData[] = [];
     private textureLoader: ENGINE.Utils.TextureLoader | null = null;
     private gl: WebGL2RenderingContext | null = null;
+    private materialManager: MaterialManager;
 
     private projectData: ProjectData | null = null;
     private currentScene: ENGINE.Scene | null = null;
@@ -125,11 +151,17 @@ export class ProjectManager {
     private firstUpdate: boolean = false;
     private GPUPerfsDebugger: PerformancesDebugger | null = null;
 
-    // Texture cache to avoid loading duplicates
-    private textureCache: Map<string, WebGLTexture> = new Map();
+    // Animation loop properties
+    private animationFrameId: number | null = null;
+    private isAnimating: boolean = false;
+    private initCallback: InitCallback | null = null;
+    private updateCallback: UpdateCallback | null = null;
+    private hasInitialized: boolean = false;
 
     constructor() {
         console.log('Initializing ProjectManager...');
+        // Get MaterialManager singleton instance
+        this.materialManager = MaterialManager.getInstance();
     }
 
     /**
@@ -152,6 +184,9 @@ export class ProjectManager {
             }
             
             this.textureLoader = new ENGINE.Utils.TextureLoader(this.gl);
+            
+            // Initialize MaterialManager
+            this.materialManager.initialize(this.gl, this.textureLoader);
 
             if (this.pConfigs.measureGPUPerformances) {
                 this.GPUPerfsDebugger = new PerformancesDebugger(this.gl);
@@ -159,6 +194,12 @@ export class ProjectManager {
 
             if (this.projectData.configs.useBitmapFontAtlas) {
                 this.bitmapFontAtlas = new ENGINE.Utils.BitmapFontAtlas('Arial', '#fff', '#000', 512, true);
+            }
+
+            // Load global materials first
+            if (this.projectData.materials) {
+                console.log(`Loading ${this.projectData.materials.length} global materials...`);
+                await this.loadGlobalMaterials(this.projectData.materials);
             }
 
             // Load all scenes
@@ -170,6 +211,17 @@ export class ProjectManager {
 
             console.log(`Loaded ${this.scenes.length} scene(s)`);
             
+            // Log material statistics
+            const stats = this.materialManager.getStatistics();
+            console.log(`Materials loaded: ${stats.materialCount}`);
+            console.log(`Textures cached: ${stats.texturesCached}`);
+            
+            // Handle initial resize
+            this.handleResize();
+            
+            // Set up resize listener
+            window.addEventListener('resize', () => this.handleResize());
+            
         } catch (error) {
             console.error("Error loading Project:", error);
             console.trace();
@@ -178,47 +230,24 @@ export class ProjectManager {
     }
 
     /**
-     * Get window manager instance
-     * @returns {ENGINE.WindowManager | null} Window manager or null
+     * Load global materials into MaterialManager
+     * @param {MaterialData[]} materials - Array of material definitions
      */
-    getWM(): ENGINE.WindowManager | null {
-        return this.wm;
-    }
-
-    /**
-     * Get entity by name from any scene
-     * @param {string} name - Entity name to search for
-     * @returns {any} Found entity or undefined
-     */
-    getEntityByName(name: string): any {
-        for (const scene of this.scenes) {
-            if (scene.name === name) {
-                return scene;
+    private async loadGlobalMaterials(materials: MaterialData[]): Promise<void> {
+        for (const materialData of materials) {
+            if (!materialData.id) {
+                console.warn('Material missing ID, skipping:', materialData);
+                continue;
             }
-
-            if (scene.getCamera().name === name) {
-                return scene.getCamera();
-            }
-
-            const meshes = scene.getMeshes();
-            for (const mesh of meshes) {
-                if (mesh.name === name) {
-                    return mesh;
-                }
-                if (mesh.material && mesh.material.name === name) {
-                    return mesh.material;
-                }
-            }
-
-            const lights = scene.getLights();
-            for (const light of lights) {
-                if (light.name === name) {
-                    return light;
-                }
+            
+            try {
+                const material = await this.materialManager.createMaterialFromData(materialData);
+                this.materialManager.registerMaterial(materialData.id, material);
+                console.log(`Loaded material: ${materialData.id} (${materialData.name})`);
+            } catch (error) {
+                console.error(`Failed to load material ${materialData.id}:`, error);
             }
         }
-        
-        return undefined;
     }
 
     /**
@@ -289,10 +318,10 @@ export class ProjectManager {
 
     /**
      * Create a mesh from configuration data
-     * @param {any} meshData - Mesh configuration
+     * @param {MeshData} meshData - Mesh configuration
      * @returns {Promise<ENGINE.Mesh | null>} Created mesh or null
      */
-    private async createMesh(meshData: any): Promise<ENGINE.Mesh | null> {
+    private async createMesh(meshData: MeshData): Promise<ENGINE.Mesh | null> {
         if (!this.gl) return null;
 
         let meshOptions;
@@ -380,275 +409,170 @@ export class ProjectManager {
         // Initialize mesh buffers
         mesh.init();
 
-        // Create and apply material
-        const material = await this.createMaterial(meshData.material, meshData.texturePaths);
+        // Get or create material
+        let material: ENGINE.Materials.Material | null = null;
+        
+        // First, check if a materialId is specified
+        if (meshData.materialId) {
+            material = this.materialManager.getMaterial(meshData.materialId);
+            if (material) {
+                console.log(`Mesh '${mesh.name}' using material: ${meshData.materialId}`);
+            } else {
+                console.warn(`Material ID '${meshData.materialId}' not found for mesh '${mesh.name}'`);
+            }
+        }
+        
+        // If no material found yet, check for inline material definition (backward compatibility)
+        if (!material && meshData.material) {
+            console.log(`Creating inline material for mesh '${mesh.name}'`);
+            // Merge texturePaths into material data for backward compatibility
+            if (meshData.texturePaths) {
+                meshData.material.textures = meshData.texturePaths;
+            }
+            material = await this.materialManager.createMaterialFromData(meshData.material);
+            
+            // Optionally register this material for reuse
+            const inlineId = `inline_${mesh.name}_${performance.now()}`;
+            this.materialManager.registerMaterial(inlineId, material);
+        }
+        
+        // If still no material, create a default one
+        if (!material) {
+            console.warn(`No material specified for mesh '${mesh.name}', using default`);
+            material = ENGINE.Materials.Material.createColorMaterial(1.0, 1.0, 1.0, 1.0);
+        }
+        
         mesh.material = material;
 
         return mesh;
     }
 
     /**
-     * Create a material from configuration data with full PBR support
-     * @param {MaterialData} materialData - Material configuration
-     * @param {any} texturePaths - Texture paths object
-     * @returns {Promise<ENGINE.Materials.Material>} Created material
+     * Start the animation loop with optional callbacks
+     * @param {InitCallback} initCallback - Called once after first frame
+     * @param {UpdateCallback} updateCallback - Called every frame before render
      */
-    private async createMaterial(
-        materialData: MaterialData,
-        texturePaths?: any
-    ): Promise<ENGINE.Materials.Material> {
-        const material = new ENGINE.Materials.Material();
-        material.name = materialData.name ?? `Material_${performance.now()}`;
-        
-        // Determine material type and configure accordingly
-        switch (materialData.type) {
-            case 'pbr':
-                // Full PBR material
-                this.configurePBRMaterial(material, materialData);
-                break;
-                
-            case 'unlit':
-                // Unlit material (no lighting)
-                material.setUnlit(true);
-                this.configureBasicProperties(material, materialData);
-                break;
-                
-            case 'emissive':
-                // Emissive material (glows)
-                material.setUnlit(true);
-                this.configureEmissiveMaterial(material, materialData);
-                break;
-                
-            case 'simple':
-            case 'texture':
-            case 'color':
-            default:
-                // Simple/legacy material
-                this.configureSimpleMaterial(material, materialData);
-                break;
+    public startAnimation(initCallback?: InitCallback, updateCallback?: UpdateCallback): void {
+        if (this.isAnimating) {
+            console.warn('Animation already running');
+            return;
         }
         
-        // Load and apply textures
-        if (texturePaths) {
-            await this.loadMaterialTextures(material, texturePaths);
+        this.initCallback = initCallback || null;
+        this.updateCallback = updateCallback || null;
+        this.isAnimating = true;
+        this.hasInitialized = false;
+        
+        // Hide loading screen if it exists
+        const loading = document.getElementById('loading-screen');
+        if (loading) {
+            loading.style.display = 'none';
         }
         
-        // Apply common properties
-        this.applyCommonProperties(material, materialData);
-        
-        return material;
+        console.log('Starting animation loop');
+        this.animate();
     }
     
     /**
-     * Configure a full PBR material
-     * @param {ENGINE.Materials.Material} material - Material to configure
-     * @param {MaterialData} data - Material data
+     * Stop the animation loop
      */
-    private configurePBRMaterial(material: ENGINE.Materials.Material, data: MaterialData): void {
-        // Base color
-        const baseColor = data.baseColor ?? data.color ?? [1.0, 1.0, 1.0, 1.0];
-        material.setBaseColor(baseColor[0], baseColor[1], baseColor[2], baseColor[3] ?? 1.0);
-        
-        // Metallic and roughness
-        material.setMetallicRoughness(
-            data.metallic ?? 0.0,
-            data.roughness ?? this.shininessToRoughness(data.shininess)
-        );
-        
-        // Emissive
-        if (data.emissive) {
-            material.setEmissive(
-                data.emissive[0],
-                data.emissive[1],
-                data.emissive[2],
-                data.emissiveIntensity ?? 1.0
-            );
+    public stopAnimation(): void {
+        this.isAnimating = false;
+        if (this.animationFrameId !== null) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
         }
-        
-        // Additional PBR properties
-        if (data.normalScale !== undefined) {
-            material.normalScale = data.normalScale;
-        }
-        if (data.occlusionStrength !== undefined) {
-            material.occlusionStrength = data.occlusionStrength;
-        }
+        console.log('Animation loop stopped');
     }
     
     /**
-     * Configure an emissive material
-     * @param {ENGINE.Materials.Material} material - Material to configure
-     * @param {MaterialData} data - Material data
+     * Main animation loop
      */
-    private configureEmissiveMaterial(material: ENGINE.Materials.Material, data: MaterialData): void {
-        // For emissive materials, use emissive color as base color too
-        const emissive = data.emissive ?? data.baseColor ?? data.color ?? [1.0, 1.0, 1.0];
-        const intensity = data.emissiveIntensity ?? 2.0;
+    private animate = (): void => {
+        if (!this.isAnimating) return;
         
-        material.setBaseColor(emissive[0], emissive[1], emissive[2], 1.0);
-        material.setEmissive(emissive[0], emissive[1], emissive[2], intensity);
-        material.setMetallicRoughness(0.0, 1.0);
-    }
-    
-    /**
-     * Configure a simple material (backward compatibility)
-     * @param {ENGINE.Materials.Material} material - Material to configure
-     * @param {MaterialData} data - Material data
-     */
-    private configureSimpleMaterial(material: ENGINE.Materials.Material, data: MaterialData): void {
-        // Base color
-        const color = data.baseColor ?? data.color ?? [1.0, 1.0, 1.0, 1.0];
-        material.setBaseColor(color[0], color[1], color[2], color[3] ?? 1.0);
+        // Request next frame first
+        this.animationFrameId = requestAnimationFrame(this.animate);
         
-        // Convert shininess to roughness if provided
-        const roughness = data.roughness ?? this.shininessToRoughness(data.shininess);
-        material.setMetallicRoughness(data.metallic ?? 0.0, roughness);
-        
-        // Check for emissive
-        if (data.emissive) {
-            material.setEmissive(
-                data.emissive[0],
-                data.emissive[1],
-                data.emissive[2],
-                data.emissiveIntensity ?? 1.0
-            );
-        }
-    }
-    
-    /**
-     * Configure basic properties for any material
-     * @param {ENGINE.Materials.Material} material - Material to configure
-     * @param {MaterialData} data - Material data
-     */
-    private configureBasicProperties(material: ENGINE.Materials.Material, data: MaterialData): void {
-        const color = data.baseColor ?? data.color ?? [1.0, 1.0, 1.0, 1.0];
-        material.setBaseColor(color[0], color[1], color[2], color[3] ?? 1.0);
-        material.setMetallicRoughness(0.0, 1.0);
-    }
-    
-    /**
-     * Apply common properties to any material
-     * @param {ENGINE.Materials.Material} material - Material to configure
-     * @param {MaterialData} data - Material data
-     */
-    private applyCommonProperties(material: ENGINE.Materials.Material, data: MaterialData): void {
-        // Transparency
-        if (data.transparent || data.alphaMode) {
-            const alphaMode = data.alphaMode ?? (data.transparent ? 'BLEND' : 'OPAQUE');
-            switch (alphaMode) {
-                case 'MASK':
-                    material.setBlendMode(ENGINE.Materials.BlendMode.ALPHA_TEST);
-                    material.alphaCutoff = data.alphaCutoff ?? 0.5;
-                    break;
-                case 'BLEND':
-                    material.setBlendMode(ENGINE.Materials.BlendMode.ALPHA_BLEND);
-                    break;
-                case 'OPAQUE':
-                default:
-                    material.setBlendMode(ENGINE.Materials.BlendMode.OPAQUE);
-                    break;
+        // Call init callback on first frame
+        if (!this.hasInitialized) {
+            this.hasInitialized = true;
+            if (this.initCallback) {
+                this.initCallback(this);
             }
         }
         
-        // Render state
-        if (data.doubleSided) {
-            material.setDoubleSided(true);
-        }
+        // Update timing
+        this.update();
         
-        if (data.unlit) {
-            material.setUnlit(true);
-        }
-    }
-    
-    /**
-     * Convert shininess to roughness
-     * @param {number | undefined} shininess - Shininess value (1-128)
-     * @returns {number} Roughness value (0-1)
-     */
-    private shininessToRoughness(shininess?: number): number {
-        if (shininess === undefined) return 0.8;
-        // Convert shininess (1-128) to roughness (1-0)
-        // Using logarithmic scale for better distribution
-        return 1.0 - (Math.log2(Math.max(1, shininess)) / 7.0);
-    }
-    
-    /**
-     * Load textures for a material
-     * @param {ENGINE.Materials.Material} material - Material to apply textures to
-     * @param {any} texturePaths - Object with texture paths
-     */
-    private async loadMaterialTextures(material: ENGINE.Materials.Material, texturePaths: any): Promise<void> {
-        if (!this.textureLoader) return;
-        
-        // Load diffuse/base color texture
-        if (texturePaths.diffuse) {
-            const texture = await this.loadTexture(texturePaths.diffuse);
-            if (texture) {
-                material.setDiffuseTexture(texture);
-                // Set base color to white when using texture
-                material.setBaseColor(1.0, 1.0, 1.0, 1.0);
-            }
-        }
-        
-        // Load normal map
-        if (texturePaths.normal) {
-            const texture = await this.loadTexture(texturePaths.normal);
-            if (texture) {
-                material.normalTexture = texture;
-            }
-        }
-        
-        // Load metallic/roughness map
-        if (texturePaths.metallicRoughness) {
-            const texture = await this.loadTexture(texturePaths.metallicRoughness);
-            if (texture) {
-                material.metallicRoughnessTexture = texture;
-            }
-        }
-        
-        // Load emissive map
-        if (texturePaths.emissive) {
-            const texture = await this.loadTexture(texturePaths.emissive);
-            if (texture) {
-                material.emissiveTexture = texture;
-            }
-        }
-        
-        // Load occlusion map
-        if (texturePaths.occlusion) {
-            const texture = await this.loadTexture(texturePaths.occlusion);
-            if (texture) {
-                material.occlusionTexture = texture;
-            }
-        }
-    }
-    
-    /**
-     * Load a single texture with caching
-     * @param {string} path - Texture path
-     * @returns {Promise<WebGLTexture | null>} Loaded texture or null
-     */
-    private async loadTexture(path: string): Promise<WebGLTexture | null> {
-        if (!this.textureLoader) return null;
-        
-        // Check cache
-        let texture = this.textureCache.get(path);
-        if (texture) return texture;
-        
-        try {
-            // Fix path - remove leading slash if present
-            let texturePath = path;
-            if (texturePath.startsWith('/')) {
-                texturePath = texturePath.substring(1);
-            }
+        // Get timer for deltaTime and elapsed time
+        const timer = this.wm?.timer;
+        if (timer) {
+            const deltaTime = timer.getDeltaTime() / 1000.0; // Convert to seconds
+            const elapsed = timer.getElapsedTime() / 1000.0; // Convert to seconds
             
-            texture = await this.textureLoader.loadTexture(texturePath);
-            this.textureCache.set(path, texture);
-            console.log(`Loaded texture: ${texturePath}`);
-            return texture;
-        } catch (error) {
-            console.error(`Failed to load texture ${path}:`, error);
-            return null;
+            // Call update callback if provided
+            if (this.updateCallback) {
+                this.updateCallback(this, deltaTime, elapsed);
+            }
         }
+        
+        // Start render timing
+        if (timer) {
+            timer.startRender();
+        }
+        
+        // Render the scene
+        this.render();
+        
+        // End render timing
+        if (timer) {
+            timer.endRender();
+        }
+    }
+
+    /**
+     * Get window manager instance
+     * @returns {ENGINE.WindowManager | null} Window manager or null
+     */
+    getWM(): ENGINE.WindowManager | null {
+        return this.wm;
+    }
+
+    /**
+     * Get entity by name from any scene
+     * @param {string} name - Entity name to search for
+     * @returns {any} Found entity or undefined
+     */
+    getEntityByName(name: string): any {
+        for (const scene of this.scenes) {
+            if (scene.name === name) {
+                return scene;
+            }
+
+            if (scene.getCamera().name === name) {
+                return scene.getCamera();
+            }
+
+            const meshes = scene.getMeshes();
+            for (const mesh of meshes) {
+                if (mesh.name === name) {
+                    return mesh;
+                }
+                if (mesh.material && mesh.material.name === name) {
+                    return mesh.material;
+                }
+            }
+
+            const lights = scene.getLights();
+            for (const light of lights) {
+                if (light.name === name) {
+                    return light;
+                }
+            }
+        }
+        
+        return undefined;
     }
 
     /**
@@ -760,19 +684,55 @@ export class ProjectManager {
     }
 
     /**
+     * Get the MaterialManager instance
+     * @returns {MaterialManager} The material manager
+     */
+    public getMaterialManager(): MaterialManager {
+        return this.materialManager;
+    }
+    
+    /**
+     * Get a material by ID
+     * @param {string} id - Material ID
+     * @returns {ENGINE.Materials.Material | null} The material or null
+     */
+    public getMaterial(id: string): ENGINE.Materials.Material | null {
+        return this.materialManager.getMaterial(id);
+    }
+
+    /**
      * Get current active scene
      * @returns {ENGINE.Scene | null} Current scene or null
      */
     getCurrentScene(): ENGINE.Scene | null {
         return this.currentScene;
     }
+    
+    /**
+     * Get all scenes
+     * @returns {ENGINE.Scene[]} Array of all loaded scenes
+     */
+    getAllScenes(): ENGINE.Scene[] {
+        return this.scenes;
+    }
+    
+    /**
+     * Check if animation is running
+     * @returns {boolean} True if animating
+     */
+    isRunning(): boolean {
+        return this.isAnimating;
+    }
 
     /**
      * Clean up resources
      */
     dispose(): void {
-        // Clear texture cache
-        this.textureCache.clear();
+        // Stop animation loop
+        this.stopAnimation();
+        
+        // Clear material manager
+        this.materialManager.clear();
         
         // Dispose scenes
         for (const scene of this.scenes) {
@@ -781,5 +741,9 @@ export class ProjectManager {
         
         // Dispose window manager
         this.wm?.dispose();
+        
+        // Clear callbacks
+        this.initCallback = null;
+        this.updateCallback = null;
     }
 }

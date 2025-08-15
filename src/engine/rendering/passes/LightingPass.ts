@@ -1,7 +1,7 @@
 // src/engine/rendering/passes/LightingPass.ts
 import { Pass } from './Pass';
-import vertexShaderSource from '../../shaders/deferredVertexShader.glsl?raw';
-import fragmentShaderSource from '../../shaders/deferredFragmentShader.glsl?raw';
+import vertexShaderSource from '../../shaders/lighting_pass.vert.glsl?raw';
+import fragmentShaderSource from '../../shaders/lighting_pass.frag.glsl?raw';
 import * as ENGINE from '../../ENGINE';
 import { UniformLocationCache } from '../../utils/UniformLocationCache';
 import { mat4, vec3 } from 'gl-matrix';

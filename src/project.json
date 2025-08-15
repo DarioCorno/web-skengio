@@ -8,6 +8,76 @@
         "debugMode": 0,
         "enableInput": true
     },
+    "materials": [
+        {
+            "id": "brickwall_pbr",
+            "name": "BrickWallPBR",
+            "type": "pbr",
+            "baseColor": [1.0, 1.0, 1.0, 1.0],
+            "metallic": 0.0,
+            "roughness": 1.0,
+            "normalScale": 1.0,
+            "occlusionStrength": 1.0,
+            "emissive": [0.0, 0.0, 0.0],
+            "emissiveIntensity": 0.0,
+            "textures": {
+                "diffuse": "/img/bricks_diffuse.jpg",
+                "normal": "/img/bricks_normal.jpg"
+            }
+        },
+        {
+            "id": "checker_metal",
+            "name": "CheckerMetal",
+            "type": "pbr",
+            "baseColor": [1.0, 1.0, 1.0, 1.0],
+            "metallic": 1.0,
+            "roughness": 0.2,
+            "normalScale": 0.0,
+            "occlusionStrength": 1.0,
+            "emissive": [0.0, 0.0, 0.0],
+            "emissiveIntensity": 0.0,
+            "textures": {
+                "diffuse": "/img/checker_plain.png"
+            }
+        },
+        {
+            "id": "uvref_pbr",
+            "name": "UVRefPBR",
+            "type": "pbr",
+            "baseColor": [1.0, 1.0, 1.0, 1.0],
+            "metallic": 0.2,
+            "roughness": 0.4,
+            "normalScale": 1.0,
+            "occlusionStrength": 1.0,
+            "emissive": [0.0, 0.0, 0.0],
+            "emissiveIntensity": 0.0,
+            "textures": {
+                "diffuse": "/img/uv_ref.png"
+            }
+        },
+        {
+            "id": "light_debug",
+            "name": "LightDebugMat",
+            "type": "emissive",
+            "baseColor": [1.0, 1.0, 1.0, 1.0],
+            "emissive": [1.0, 1.0, 1.0],
+            "emissiveIntensity": 2.0
+        },
+        {
+            "id": "wood_floor",
+            "name": "WoodFloor",
+            "type": "pbr",
+            "baseColor": [0.8, 0.7, 0.6, 1.0],
+            "metallic": 0.0,
+            "roughness": 0.6,
+            "emissive": [0.0, 0.0, 0.0],
+            "emissiveIntensity": 0.0,            
+            "textures": {
+                "diffuse": "/img/wood_diffuse.png",
+                "normal" : "/img/wood_normal.png"
+            }
+        }
+    ],
     "scenes": [
         {
             "name": "Scene 1",
@@ -45,21 +115,7 @@
                     "position": [0, 0, 0],
                     "rotation": [0, 90, 0],
                     "scale": [1, 1, 1],
-                    "material": {
-                        "name": "BrickWallPBR",
-                        "type": "pbr",
-                        "baseColor": [1.0, 1.0, 1.0, 1.0],
-                        "metallic": 0.0,
-                        "roughness": 0.7,
-                        "normalScale": 1.5,
-                        "occlusionStrength": 1.0,
-                        "emissive": [0.0, 0.0, 0.0],
-                        "emissiveIntensity": 0.4
-                    },
-                    "texturePaths": {
-                        "diffuse": "/img/bricks_diffuse.jpg",
-                        "normal" : "/img/bricks_normal.jpg"
-                    },
+                    "materialId": "brickwall_pbr",
                     "data": {
                         "radius": 1.0,
                         "wSegments": 12,
@@ -72,25 +128,39 @@
                     "position": [-1.8, 0, 0],
                     "rotation": [0, 0, 0],
                     "scale": [1, 1, 1],
-                    "material": {
-                        "name": "Checker",
-                        "type": "pbr",
-                        "baseColor": [1.0, 1.0, 1.0, 1.0],
-                        "metallic": 1.0,
-                        "roughness": 0.2,
-                        "normalScale": 0.0,
-                        "occlusionStrength": 1.0,
-                        "emissive": [0.0, 0.0, 0.0],
-                        "emissiveIntensity": 0.0
-                    },
-                    "texturePaths": {
-                        "diffuse": "/img/checker_plain.png"
-                    },
+                    "materialId": "checker_metal",
                     "data": {
                         "radius": 3.0,
                         "tubeRadius": 0.6,
                         "radialSegments": 32,
                         "tubularSegments": 16
+                    }
+                },
+                {
+                    "name": "RotatingCube",
+                    "geometry": "cube",
+                    "position": [0, 0, 0],
+                    "rotation": [0, 0, 0],
+                    "scale": [1.5, 1.5, 1.5],
+                    "materialId": "uvref_pbr",
+                    "data": {
+                        "width": 1.0,
+                        "height": 1.0,
+                        "depth": 1.0
+                    }
+                },
+                {
+                    "name": "Floor",
+                    "geometry": "plane",
+                    "position": [0, -2, 0],
+                    "rotation": [0, 0, 0],
+                    "scale": [10, 1, 10],
+                    "materialId": "wood_floor",
+                    "data": {
+                        "width": 1.0,
+                        "height": 1.0,
+                        "widthSegments": 1,
+                        "heightSegments": 1
                     }
                 }
             ]

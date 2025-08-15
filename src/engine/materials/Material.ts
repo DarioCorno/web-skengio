@@ -40,7 +40,7 @@ export class Material {
     public metallic: number = 0.0;
     public roughness: number = 1.0;
     public emissiveFactor: vec3 = vec3.fromValues(0.0, 0.0, 0.0);
-    public emissiveIntensity: number = 1.0;
+    public emissiveIntensity: number = 0.0;
     public normalScale: number = 1.0;
     public occlusionStrength: number = 1.0;
     public alphaCutoff: number = 0.5;

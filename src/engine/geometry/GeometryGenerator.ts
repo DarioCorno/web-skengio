@@ -211,7 +211,7 @@ export class GeometryGenerator {
         };
     }
 
-    /**
+/**
      * Generate a plane
      * @param width - Width of the plane
      * @param height - Height of the plane
@@ -244,48 +244,48 @@ export class GeometryGenerator {
 		const segment_width = width / gridX;
 		const segment_height = height / gridY;
 
-
+		// Generate vertices
 		for ( let iy = 0; iy < gridY1; iy ++ ) {
 
-			const y = iy * segment_height - height_half;
+			const z = iy * segment_height - height_half;
 
 			for ( let ix = 0; ix < gridX1; ix ++ ) {
 
 				const x = ix * segment_width - width_half;
 
-				_positions.push( x, - y, 0 );
+				// Position: x on X axis, 0 on Y axis (horizontal plane), z on Z axis
+				_positions.push( x, 0, z );
 
-				_normals.push( 0, 0, 1 );
+				// Normal pointing up (positive Y direction)
+				_normals.push( 0, 1, 0 );
 
+				// UV coordinates
 				_uvs.push( ix / gridX );
 				_uvs.push( 1 - ( iy / gridY ) );
 
 			}
-
-
-            for ( let iy = 0; iy < gridY; iy ++ ) {
-
-                for ( let ix = 0; ix < gridX; ix ++ ) {
-    
-                    const a = ix + gridX1 * iy;
-                    const b = ix + gridX1 * ( iy + 1 );
-                    const c = ( ix + 1 ) + gridX1 * ( iy + 1 );
-                    const d = ( ix + 1 ) + gridX1 * iy;
-    
-                    _indices.push( a, b, d );
-                    _indices.push( b, c, d );
-    
-                }
-    
-            }     
-            
-            return GeometryGenerator.copyToMeshData(_positions, _normals, _uvs, _indices);
-
 		}
 
-        return GeometryGenerator.copyToMeshData(_positions, _normals, _uvs, _indices);
-    }
+		// Generate indices
+		for ( let iy = 0; iy < gridY; iy ++ ) {
 
+			for ( let ix = 0; ix < gridX; ix ++ ) {
+
+				const a = ix + gridX1 * iy;
+				const b = ix + gridX1 * ( iy + 1 );
+				const c = ( ix + 1 ) + gridX1 * ( iy + 1 );
+				const d = ( ix + 1 ) + gridX1 * iy;
+
+				// Two triangles per quad
+				_indices.push( a, b, d );
+				_indices.push( b, c, d );
+
+			}
+
+		}     
+		
+		return GeometryGenerator.copyToMeshData(_positions, _normals, _uvs, _indices);
+    }
   
     /**
      * Generate a sphere

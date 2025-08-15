@@ -1,7 +1,7 @@
 // src/engine/rendering/passes/GBufferPass.ts
 import { Pass } from './Pass';
-import gbufferVertexShader from '../../shaders/gbufferVertexShader.glsl?raw';
-import gbufferFragmentShader from '../../shaders/gbufferFragmentShader.glsl?raw';
+import gbufferVertexShader from '../../shaders/gbuffer_pass.vert.glsl?raw';
+import gbufferFragmentShader from '../../shaders/gbuffer_pass.frag.glsl?raw';
 import * as ENGINE from '../../ENGINE';
 import { mat4 } from 'gl-matrix';
 import { Entity } from '../../core/Entity';

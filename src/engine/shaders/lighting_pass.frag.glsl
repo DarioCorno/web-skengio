@@ -115,9 +115,13 @@ void main() {
         vec3 diffuse = diff * albedo * uLights[i].color;
         
         // Specular lighting (Blinn-Phong)
-        vec3 halfwayDir = normalize(lightDir + viewDir);
-        float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
-        vec3 specular = spec * uLights[i].color;
+        vec3 specular = vec3(0.0);
+        // Only calculate specular if shininess is high enough to avoid numerical issues
+        if (shininess > 0.1) {
+            vec3 halfwayDir = normalize(lightDir + viewDir);
+            float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
+            specular = spec * uLights[i].color;
+        }
         
         // Add this light's contribution
         color += (diffuse + specular) * uLights[i].intensity * attenuation;
